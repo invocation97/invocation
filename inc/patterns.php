@@ -185,6 +185,58 @@ function blocksmith_get_patterns_for_context( int $limit = 40, bool $include_con
 }
 
 /**
+ * Rank patterns by relevance to a query and return the top N.
+ *
+ * Scores by how many query terms appear in the pattern's title, categories and
+ * description. With no query (or no matches) it falls back to the existing order.
+ *
+ * @param array<int, array<string, mixed>> $patterns Pattern catalogue.
+ * @param string                           $query    Prompt/query to rank against.
+ * @param int                              $limit    Maximum to return.
+ * @return array<int, array<string, mixed>>
+ */
+function blocksmith_rank_patterns( array $patterns, string $query, int $limit ): array {
+	$terms = array_values(
+		array_filter(
+			array_map( 'strtolower', preg_split( '/\s+/', $query, -1, PREG_SPLIT_NO_EMPTY ) ?: array() ),
+			static fn ( string $t ): bool => strlen( $t ) > 2
+		)
+	);
+
+	if ( empty( $terms ) ) {
+		return array_slice( $patterns, 0, $limit );
+	}
+
+	$scored = array();
+	foreach ( $patterns as $index => $pattern ) {
+		$haystack = strtolower(
+			(string) ( $pattern['title'] ?? '' ) . ' '
+			. implode( ' ', (array) ( $pattern['categories'] ?? array() ) ) . ' '
+			. (string) ( $pattern['description'] ?? '' )
+		);
+		$score = 0;
+		foreach ( $terms as $term ) {
+			if ( str_contains( $haystack, $term ) ) {
+				++$score;
+			}
+		}
+		$scored[] = array(
+			'pattern' => $pattern,
+			'score'   => $score,
+			'index'   => $index,
+		);
+	}
+
+	// Highest score first; stable on original order for ties (PHP 8 sort is stable).
+	usort( $scored, static fn ( array $a, array $b ): int => $b['score'] <=> $a['score'] );
+
+	return array_map(
+		static fn ( array $entry ) => $entry['pattern'],
+		array_slice( $scored, 0, $limit )
+	);
+}
+
+/**
  * Get a single registered pattern (with content) by its slug.
  *
  * @param string $name Pattern slug, e.g. "twentytwentyfive/cta-centered-heading".

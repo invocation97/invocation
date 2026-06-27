@@ -41,7 +41,13 @@ function blocksmith_context_providers(): array {
 		),
 		'patterns' => array(
 			'enabled' => static fn ( array $input ): bool => ! array_key_exists( 'usePatterns', $input ) || (bool) $input['usePatterns'],
-			'gather'  => static fn ( array $args ) => function_exists( 'blocksmith_get_patterns_for_context' ) ? blocksmith_get_patterns_for_context() : array(),
+			'gather'  => static function ( array $args ) {
+				if ( ! function_exists( 'blocksmith_get_patterns_for_context' ) ) {
+					return array();
+				}
+				// Rank a pool of patterns by relevance to the prompt and keep the top few.
+				return blocksmith_rank_patterns( blocksmith_get_patterns_for_context( 200 ), (string) $args['query'], 12 );
+			},
 			'render'  => 'blocksmith_render_patterns_context',
 		),
 		'media'    => array(
@@ -213,9 +219,9 @@ function blocksmith_render_theme_context( $theme, array $input ): array {
  * @return list<string>
  */
 function blocksmith_render_blocks_context( $blocks, array $input ): array {
-	$blocks = is_array( $blocks ) ? $blocks : array();
-	$core   = array();
-	$custom = array();
+	$blocks          = is_array( $blocks ) ? $blocks : array();
+	$registered_core = array();
+	$custom          = array();
 
 	foreach ( $blocks as $block ) {
 		$name = (string) ( $block['name'] ?? '' );
@@ -223,19 +229,33 @@ function blocksmith_render_blocks_context( $blocks, array $input ): array {
 			continue;
 		}
 		if ( str_starts_with( $name, 'core/' ) ) {
-			$core[] = $name;
+			$registered_core[ $name ] = true;
 		} else {
 			$title    = (string) ( $block['title'] ?? $name );
 			$custom[] = $name . ( '' !== $title ? ' (' . $title . ')' : '' );
 		}
 	}
 
-	$lines = array( 'Use ONLY registered block types listed here.' );
+	// The model already knows core blocks, so we don't enumerate all ~110 — we
+	// only surface the layout/content ones worth preferring (filtered to those
+	// actually registered, in case a site has disabled some). Custom blocks, which
+	// the model can't know, are always listed in full.
+	$preferred_core = array(
+		'core/group', 'core/columns', 'core/column', 'core/cover', 'core/media-text',
+		'core/heading', 'core/paragraph', 'core/list', 'core/list-item', 'core/quote', 'core/pullquote',
+		'core/image', 'core/gallery', 'core/buttons', 'core/button', 'core/separator', 'core/spacer',
+		'core/details', 'core/table', 'core/video', 'core/audio', 'core/embed',
+		'core/social-links', 'core/social-link', 'core/search', 'core/code', 'core/html',
+		'core/site-logo', 'core/navigation', 'core/more', 'core/nextpage',
+	);
+	$preferred = array_values( array_filter( $preferred_core, static fn ( string $n ): bool => isset( $registered_core[ $n ] ) ) );
+
+	$lines = array( 'Blocks — use only blocks registered on this site; do not invent block types.' );
 	if ( $custom ) {
-		$lines[] = 'Site-specific / custom blocks — these are unique to this site; PREFER them when they fit the content: ' . implode( ', ', $custom ) . '.';
+		$lines[] = 'Site-specific / custom blocks — unique to this site; PREFER them when they fit the content: ' . implode( ', ', $custom ) . '.';
 	}
-	if ( $core ) {
-		$lines[] = 'Core blocks available: ' . implode( ', ', $core ) . '.';
+	if ( $preferred ) {
+		$lines[] = 'Standard WordPress core blocks are available; prefer these for layout & content: ' . implode( ', ', $preferred ) . '.';
 	}
 	return $lines;
 }
