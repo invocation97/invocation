@@ -126,6 +126,30 @@ function blocksmith_context_grounding_lines( array $ctx ): array {
 }
 
 /**
+ * Run a structured-JSON generation through the WP AI client.
+ *
+ * Centralises the prompt-builder chain and raises the request timeout, since
+ * full-page generations routinely exceed the 30s core default.
+ *
+ * @param string               $user_prompt System will receive $system; this is the user message.
+ * @param string               $system      System instruction.
+ * @param array<string, mixed> $schema      JSON schema for the response.
+ * @return string|WP_Error Raw JSON text or an error.
+ */
+function blocksmith_generate_text( string $user_prompt, string $system, array $schema ) {
+	$raise_timeout = static fn (): float => 120.0;
+	add_filter( 'wp_ai_client_default_request_timeout', $raise_timeout );
+	try {
+		return wp_ai_client_prompt( $user_prompt )
+			->using_system_instruction( $system )
+			->as_json_response( $schema )
+			->generate_text();
+	} finally {
+		remove_filter( 'wp_ai_client_default_request_timeout', $raise_timeout );
+	}
+}
+
+/**
  * Validate, normalise and repair model-produced block markup.
  *
  * @param string               $markup Raw block markup from the model.

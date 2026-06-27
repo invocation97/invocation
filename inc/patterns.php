@@ -183,3 +183,26 @@ function blocksmith_get_patterns_for_context( int $limit = 40, bool $include_con
 
 	return $out;
 }
+
+/**
+ * Get a single registered pattern (with content) by its slug.
+ *
+ * @param string $name Pattern slug, e.g. "twentytwentyfive/cta-centered-heading".
+ * @return array{name: string, title: string, content: string}|null
+ */
+function blocksmith_get_pattern_by_name( string $name ): ?array {
+	if ( ! class_exists( 'WP_Block_Patterns_Registry' ) ) {
+		return null;
+	}
+	$registry = WP_Block_Patterns_Registry::get_instance();
+	if ( ! $registry->is_registered( $name ) ) {
+		return null;
+	}
+	$pattern = $registry->get_registered( $name );
+
+	return array(
+		'name'    => $name,
+		'title'   => (string) ( $pattern['title'] ?? $name ),
+		'content' => (string) ( $pattern['content'] ?? '' ),
+	);
+}

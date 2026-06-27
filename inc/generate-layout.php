@@ -62,6 +62,16 @@ add_action(
 							'description' => 'Whether to offer the site\'s registered section patterns as composition material. Default true.',
 							'default'     => true,
 						),
+						'scope'            => array(
+							'type'        => 'string',
+							'description' => 'Generation scope: "section" (one cohesive section, default), "full-page" (a complete multi-section page), or "fill-from-pattern" (fill a chosen pattern — requires patternName).',
+							'enum'        => array( 'section', 'full-page', 'fill-from-pattern' ),
+							'default'     => 'section',
+						),
+						'patternName'      => array(
+							'type'        => 'string',
+							'description' => 'Slug of a registered pattern to fill (e.g. "twentytwentyfive/cta-centered-heading"). Implies scope "fill-from-pattern".',
+						),
 					),
 					'required'             => array( 'prompt' ),
 					'additionalProperties' => false,
@@ -118,8 +128,40 @@ function blocksmith_ability_generate_layout( array $input = array() ) {
 		return new WP_Error( 'blocksmith_no_ai_client', __( 'The WordPress AI Client is not available.', 'blocksmith' ) );
 	}
 
-	$ctx         = blocksmith_gather_context( $prompt, $input );
-	$system      = blocksmith_build_layout_system_instruction( $ctx, $input );
+	$scope        = (string) ( $input['scope'] ?? 'section' );
+	$pattern_name = trim( (string) ( $input['patternName'] ?? '' ) );
+	$fill         = 'fill-from-pattern' === $scope || '' !== $pattern_name;
+
+	$pattern = null;
+	if ( $fill ) {
+		if ( '' === $pattern_name ) {
+			return new WP_Error( 'blocksmith_missing_pattern', __( 'A patternName is required to fill from a pattern.', 'blocksmith' ) );
+		}
+		$pattern = function_exists( 'blocksmith_get_pattern_by_name' ) ? blocksmith_get_pattern_by_name( $pattern_name ) : null;
+		if ( null === $pattern ) {
+			return new WP_Error( 'blocksmith_pattern_not_found', __( 'The requested pattern was not found.', 'blocksmith' ) );
+		}
+		$scope = 'fill-from-pattern';
+	}
+
+	// When filling a specific pattern, don't also inject the whole pattern
+	// catalogue — the one pattern is the scaffold, so this trims context too.
+	$ctx_input = $input;
+	if ( $fill ) {
+		$ctx_input['usePatterns'] = false;
+	}
+
+	$ctx    = blocksmith_gather_context( $prompt, $ctx_input );
+	$system = blocksmith_build_layout_system_instruction( $ctx, $input, $scope );
+
+	$user_prompt = $prompt;
+	if ( $fill ) {
+		$user_prompt = "Request:\n" . $prompt
+			. "\n\nFill the following section pattern. Keep its block structure and layout exactly; replace placeholder text and headings with original content for the request. Return the COMPLETE filled markup.\n\n--- PATTERN: " . $pattern['title'] . " ---\n"
+			. $pattern['content']
+			. "\n---";
+	}
+
 	$json_schema = array(
 		'type'                 => 'object',
 		'properties'           => array(
@@ -138,12 +180,7 @@ function blocksmith_ability_generate_layout( array $input = array() ) {
 		'additionalProperties' => false,
 	);
 
-	// The WP wrapper exposes snake_case methods and returns WP_Error (not exceptions)
-	// from the generating call, so the fluent chain itself is safe to build.
-	$response = wp_ai_client_prompt( $prompt )
-		->using_system_instruction( $system )
-		->as_json_response( $json_schema )
-		->generate_text();
+	$response = blocksmith_generate_text( $user_prompt, $system, $json_schema );
 
 	if ( is_wp_error( $response ) ) {
 		return $response;
@@ -173,9 +210,10 @@ function blocksmith_ability_generate_layout( array $input = array() ) {
  *
  * @param array<string, mixed> $ctx   Output of blocksmith_gather_context().
  * @param array<string, mixed> $input Ability input.
+ * @param string               $scope Generation scope (section|full-page|fill-from-pattern).
  * @return string
  */
-function blocksmith_build_layout_system_instruction( array $ctx, array $input ): string {
+function blocksmith_build_layout_system_instruction( array $ctx, array $input, string $scope = 'section' ): string {
 	$tone     = (string) ( $input['tone'] ?? 'professional' );
 	$audience = (string) ( $input['audience'] ?? 'a general audience' );
 	$title    = (string) ( $input['postTitle'] ?? '' );
@@ -185,11 +223,14 @@ function blocksmith_build_layout_system_instruction( array $ctx, array $input ):
 		'',
 		'Output ONLY valid Gutenberg block markup (HTML comment delimiters such as <!-- wp:heading {"level":2} --><h2>...</h2><!-- /wp:heading -->), placed in the "blockMarkup" field of your JSON response. Do not include explanations or code fences in that field.',
 		'',
-		'Layout guidance:',
-		'- Prefer core layout blocks (core/group, core/columns, core/column, core/cover, core/buttons) to create structured, responsive sections.',
-		'- Establish a clear heading hierarchy (a single h1 or h2 lead, then subsections).',
-		'',
 	);
+
+	$lines = array_merge( $lines, blocksmith_layout_scope_lines( $scope ), array( '' ) );
+
+	$lines[] = 'Layout guidance:';
+	$lines[] = '- Prefer core layout blocks (core/group, core/columns, core/column, core/cover, core/buttons) to create structured, responsive sections.';
+	$lines[] = '- Establish a clear heading hierarchy (a single h1 or h2 lead, then subsections).';
+	$lines[] = '';
 
 	$lines = array_merge( $lines, blocksmith_context_grounding_lines( $ctx ) );
 
@@ -200,4 +241,26 @@ function blocksmith_build_layout_system_instruction( array $ctx, array $input ):
 	}
 
 	return implode( "\n", $lines );
+}
+
+/**
+ * Scope-specific guidance lines.
+ *
+ * @param string $scope Generation scope.
+ * @return list<string>
+ */
+function blocksmith_layout_scope_lines( string $scope ): array {
+	switch ( $scope ) {
+		case 'full-page':
+			return array( 'Scope: build a COMPLETE page composed of several distinct sections (e.g. a hero, supporting sections, and a call to action) in a sensible order.' );
+		case 'fill-from-pattern':
+			return array(
+				'Scope: you are FILLING the section pattern provided in the user message.',
+				'- Keep the pattern\'s block structure, block types, and layout intact; do not add or remove sections.',
+				'- Replace placeholder/sample text and headings with original content for the request.',
+			);
+		case 'section':
+		default:
+			return array( 'Scope: build a single, cohesive section (usually one top-level group block) unless the request explicitly asks for a full page.' );
+	}
 }

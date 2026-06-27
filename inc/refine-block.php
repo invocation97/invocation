@@ -137,10 +137,7 @@ function blocksmith_ability_refine_block( array $input = array() ) {
 		'additionalProperties' => false,
 	);
 
-	$response = wp_ai_client_prompt( $user_prompt )
-		->using_system_instruction( $system )
-		->as_json_response( $json_schema )
-		->generate_text();
+	$response = blocksmith_generate_text( $user_prompt, $system, $json_schema );
 
 	if ( is_wp_error( $response ) ) {
 		return $response;
