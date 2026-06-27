@@ -1,37 +1,94 @@
-# Invocation
+![Invocation](assets/banner-772x250.png)
 
-Build styled Gutenberg page content with AI — grounded in your own block theme.
+# Invocation — AI Page & Section Builder
 
-Invocation is a self-hosted, open-source WordPress plugin. It uses **WordPress 7.0 core** for everything provider-related (you connect your own OpenAI / Anthropic / Google key once under **Settings → Connectors**), and focuses on the one thing core doesn't do: turning your site's actual registered blocks and `theme.json` design tokens into valid, on-theme Gutenberg layouts.
+> Forge on-theme WordPress pages with AI — grounded in your own blocks, patterns, theme, media, and links.
 
-No external service, no database, no Docker. Bring your own AI key; everything runs on your WordPress server.
+Invocation is a self-hosted, open-source AI assistant for the WordPress block editor (**WordPress 7.0+**). It leans on core for everything provider-related — you connect your own OpenAI, Anthropic, or Google key once under **Settings → Connectors** — and focuses on the part core doesn't do: turning your site's *actual* registered blocks, block patterns, `theme.json` design tokens, media, and internal links into valid, on-theme Gutenberg layouts.
+
+No external service. No database. No Docker at runtime. Your AI key stays in core; nothing is sent anywhere until you ask it to generate.
+
+## What it does
+
+- **Generate** a single section or a full multi-section page from a prompt.
+- **Fill a pattern** — pick one of your theme's block patterns and have AI write real content into it, keeping the structure.
+- **Refine** any block in place from the block toolbar ("make this punchier", "add a CTA", …).
+- **Stays on-brand** via an editable **Site Brief** (purpose, audience, voice, offerings) injected into every generation.
+- **Never invents** block types, image URLs, or internal links — it uses what actually exists on your site (and repairs guessed links).
 
 ## Requirements
 
-- WordPress **7.0+** (for the Abilities API, the PHP AI Client, and Connectors)
-- PHP **8.1+**
-- At least one AI provider configured under **Settings → Connectors**
+| | |
+|---|---|
+| WordPress | **7.0+** |
+| PHP | **8.1+** |
+| AI provider | At least one configured under **Settings → Connectors** |
+| MCP (optional) | The [WordPress MCP Adapter](https://github.com/WordPress/mcp-adapter) plugin |
+
+### WordPress core features it relies on
+
+Invocation is built entirely on first-party WordPress 7.0 building blocks — it does not bundle its own AI/provider code:
+
+| Core feature | Used for |
+|---|---|
+| **Abilities API** (`wp_register_ability`) | Registering Invocation's capabilities (see below) |
+| **PHP AI Client** (`wp_ai_client_prompt()`) | Sending prompts and getting structured output |
+| **Connectors API** (Settings → Connectors) | Provider selection + your API key (BYO key) |
+| Native `parse_blocks()` / `serialize_blocks()` | Validating and normalising generated markup |
+
+**Optional:** the **WordPress MCP Adapter** plugin. Invocation works fully without it; install it only to expose the abilities over MCP. There is no `Requires Plugins` hard dependency, so Invocation activates standalone.
+
+## Abilities ("skills")
+
+Every capability is a registered **Ability**, which means it is callable in PHP (`wp_get_ability()`), over the REST API (`/wp-json/wp-abilities/v1/…`), and — with the MCP Adapter — as an MCP tool. Each enforces its own capability check.
+
+| Ability | What it does | Capability |
+|---|---|---|
+| `invocation/generate-layout` | Build a section / full page / fill-from-pattern | `edit_posts` * |
+| `invocation/refine-block` | Revise existing block markup from an instruction | `edit_posts` * |
+| `invocation/list-patterns` | List the site's block patterns (sections) | `edit_posts` |
+| `invocation/list-blocks` | List registered block types (incl. custom) | `edit_posts` |
+| `invocation/get-theme-context` | `theme.json` colors, fonts, layout sizes | `edit_posts` |
+| `invocation/search-media` | Find real images in the media library | `upload_files` |
+| `invocation/search-internal-links` | Find real internal URLs (pages/posts/terms) | `edit_posts` |
+| `invocation/gather-site-context` | Build/refresh the Site Brief | `manage_options` |
+| `invocation/create-page` | Create a page/post (draft by default) | post type's create cap |
+| `invocation/update-page` | Update a page/post by id | `edit_post` (that post) |
+
+\* The generative abilities' capability is filterable via `invocation_generation_capability` (default `edit_posts`) so you can limit who can spend the AI budget.
+
+## MCP server
+
+With the [MCP Adapter](https://github.com/WordPress/mcp-adapter) active, Invocation registers an MCP server that exposes the abilities above as tools at:
+
+```
+/wp-json/invocation/mcp
+```
+
+Tools are named `invocation-<ability>` (e.g. `invocation-generate-layout`). Authenticate with a WordPress **Application Password**. This lets an agent in **Claude Code**, Claude Desktop, Cursor, etc. generate *and persist* whole pages end-to-end (`generate-layout` → `create-page`).
+
+A ready-to-use **Claude Code plugin** lives in [`clients/claude-code/`](clients/claude-code/) — see its README for install.
+
+## Editor experience
+
+- **Sidebar** (Invocation icon in the editor): choose a scope (section / full page / fill a pattern), a tone, write a prompt → blocks are inserted.
+- **Block toolbar → Refine**: rewrite the selected block in place.
+- **Admin → Invocation**: generate and edit your Site Brief.
 
 ## How it works
 
-Invocation registers a set of **Abilities** (the WordPress 7.0 capability primitive):
+A small **context-provider** layer gathers grounding (theme tokens, an allow-list of blocks, relevant patterns, media, internal links, the Site Brief) and renders it into the system prompt. The model returns structured JSON, which is validated and normalised through WordPress' native `parse_blocks()` / `serialize_blocks()`, with a pass that repairs any guessed internal links to real URLs. Everything runs server-side; the editor just inserts the result.
 
-| Ability | Purpose |
-| --- | --- |
-| `invocation/get-theme-context` | Reads color palette, typography, and layout sizes from `theme.json`. |
-| `invocation/list-blocks` | Lists the block types registered on the site. |
-| `invocation/generate-layout` *(planned)* | Composes a validated, on-theme Gutenberg layout from a prompt. |
+## Installation
 
-Because these are abilities, they are automatically:
+**From a release:** download the latest `invocation.zip` and install it via *Plugins → Add New → Upload*, then activate. Configure a provider under *Settings → Connectors*.
 
-- validated against their JSON schemas,
-- exposed over the REST API, and
-- surfaced through the core **MCP Adapter** — so external agents like **Claude Code** can drive Invocation with no extra transport code.
+**From source:** see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Status
+## Contributing
 
-Early development. The original metered-SaaS prototype lived in a separate repo; this is a clean rewrite for the WordPress 7.0 AI era.
+Issues and pull requests are welcome — please read [CONTRIBUTING.md](CONTRIBUTING.md) first. Security reports: see [SECURITY.md](SECURITY.md).
 
 ## License
 
-GPL-2.0-or-later
+[GPL-2.0-or-later](https://www.gnu.org/licenses/gpl-2.0.html).
