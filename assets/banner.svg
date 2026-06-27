@@ -1,0 +1,29 @@
+<svg width="772" height="250" viewBox="0 0 772 250" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4F46E5"/>
+      <stop offset="1" stop-color="#9333EA"/>
+    </linearGradient>
+  </defs>
+  <rect width="772" height="250" fill="url(#bg)"/>
+
+  <!-- faint blocks motif on the right -->
+  <g opacity="0.08" fill="#ffffff">
+    <rect x="566" y="44" width="170" height="38" rx="12"/>
+    <rect x="544" y="106" width="214" height="38" rx="12"/>
+    <rect x="586" y="168" width="132" height="38" rx="12"/>
+  </g>
+
+  <!-- icon mark -->
+  <g transform="translate(56,57)">
+    <rect width="136" height="136" rx="30" fill="#ffffff" opacity="0.14"/>
+    <rect x="30" y="34" width="76" height="20" rx="7" fill="#ffffff"/>
+    <rect x="22" y="62" width="92" height="20" rx="7" fill="#ffffff" opacity="0.82"/>
+    <rect x="40" y="90" width="60" height="20" rx="7" fill="#ffffff" opacity="0.66"/>
+    <path d="M104 24 l4 8 8 4 -8 4 -4 8 -4 -8 -8 -4 8 -4 z" fill="#FFD43B"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="232" y="118" font-family="'Helvetica Neue',Arial,sans-serif" font-size="62" font-weight="700" fill="#ffffff">Blocksmith</text>
+  <text x="234" y="158" font-family="'Helvetica Neue',Arial,sans-serif" font-size="23" font-weight="400" fill="#E9E5FF">AI page building, grounded in your blocks.</text>
+</svg>
