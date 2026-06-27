@@ -74,9 +74,12 @@ add_action(
 				'meta'                => array(
 					'show_in_rest' => true,
 					'annotations'  => array(
-						// Reads context and calls the AI provider, but modifies nothing in WordPress.
-						'readonly'   => true,
-						'idempotent' => false,
+						// Generative action: takes input and is non-idempotent, so it is
+						// exposed over REST as POST (the Abilities REST layer maps
+						// readonly:true to GET-only). It still modifies nothing in WordPress.
+						'readonly'    => false,
+						'destructive' => false,
+						'idempotent'  => false,
 					),
 				),
 			)
