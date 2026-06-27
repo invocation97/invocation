@@ -57,6 +57,11 @@ add_action(
 							'description' => 'Whether to offer real internal links (pages/posts) for the AI to link to. Default true.',
 							'default'     => true,
 						),
+						'usePatterns'      => array(
+							'type'        => 'boolean',
+							'description' => 'Whether to offer the site\'s registered section patterns as composition material. Default true.',
+							'default'     => true,
+						),
 					),
 					'required'             => array( 'prompt' ),
 					'additionalProperties' => false,

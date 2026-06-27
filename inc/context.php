@@ -1,12 +1,17 @@
 <?php
 /**
- * Shared generation context for Blocksmith abilities.
+ * Shared generation context for Blocksmith abilities — a small provider system.
  *
- * This is the seam that both generate-layout and refine-block build on: it
- * gathers the grounding context (theme tokens, allowed blocks, media, internal
- * links), renders it into system-instruction lines, and finalises model output
- * (validate, normalise, repair links). New context "providers" (block subsets,
- * patterns, a site brief, …) can be added here in one place.
+ * Each "context provider" knows how to (a) gather some grounding data and (b)
+ * render it into system-instruction lines. generate-layout and refine-block both
+ * build on this: gather everything once, render it, and finalise model output.
+ * New providers (patterns, a site brief, …) register in one place and are
+ * filterable via `blocksmith_context_providers`, including for premium add-ons.
+ *
+ * A provider is an array:
+ *   'enabled' => fn( array $input ): bool      // whether to include it this run
+ *   'gather'  => fn( array $args ): mixed       // $args = [ 'query' => string, 'input' => array ]
+ *   'render'  => callable( mixed $data, array $input ): list<string>
  *
  * @package Blocksmith
  */
@@ -18,107 +23,102 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Gather the grounding context for a generation/refinement request.
+ * The registered context providers, in render order.
  *
- * @param string               $media_query Query used to find relevant media (usually the prompt/instruction).
- * @param array<string, mixed> $input       Ability input (read for useMedia / useInternalLinks flags).
- * @return array{theme: array<string, mixed>, allowed: list<string>, media: array<int, array<string, mixed>>, links: array<int, array<string, mixed>>}
+ * @return array<string, array<string, mixed>>
  */
-function blocksmith_gather_context( string $media_query, array $input ): array {
-	$theme   = blocksmith_ability_get_theme_context();
-	$blocks  = blocksmith_ability_list_blocks();
-	$allowed = wp_list_pluck( $blocks['blocks'], 'name' );
+function blocksmith_context_providers(): array {
+	$providers = array(
+		'theme'    => array(
+			'enabled' => static fn ( array $input ): bool => true,
+			'gather'  => static fn ( array $args ) => blocksmith_ability_get_theme_context(),
+			'render'  => 'blocksmith_render_theme_context',
+		),
+		'blocks'   => array(
+			'enabled' => static fn ( array $input ): bool => true,
+			'gather'  => static fn ( array $args ) => blocksmith_ability_list_blocks()['blocks'],
+			'render'  => 'blocksmith_render_blocks_context',
+		),
+		'patterns' => array(
+			'enabled' => static fn ( array $input ): bool => ! array_key_exists( 'usePatterns', $input ) || (bool) $input['usePatterns'],
+			'gather'  => static fn ( array $args ) => function_exists( 'blocksmith_get_patterns_for_context' ) ? blocksmith_get_patterns_for_context() : array(),
+			'render'  => 'blocksmith_render_patterns_context',
+		),
+		'media'    => array(
+			'enabled' => static fn ( array $input ): bool => ! array_key_exists( 'useMedia', $input ) || (bool) $input['useMedia'],
+			'gather'  => static fn ( array $args ) => function_exists( 'blocksmith_ability_search_media' )
+				? blocksmith_ability_search_media( array( 'query' => $args['query'], 'limit' => 8 ) )['items']
+				: array(),
+			'render'  => 'blocksmith_render_media_context',
+		),
+		'links'    => array(
+			'enabled' => static fn ( array $input ): bool => ! array_key_exists( 'useInternalLinks', $input ) || (bool) $input['useInternalLinks'],
+			'gather'  => static fn ( array $args ) => function_exists( 'blocksmith_ability_search_internal_links' )
+				? blocksmith_ability_search_internal_links( array( 'query' => '', 'limit' => 15 ) )['items']
+				: array(),
+			'render'  => 'blocksmith_render_links_context',
+		),
+	);
 
-	// WP 7.0's AI client does not run the tool loop in a single call, so instead
-	// of letting the model "search" mid-generation we retrieve up front and inject
-	// the results as catalogues it must pick from.
-	$media = array();
-	if ( ( ! array_key_exists( 'useMedia', $input ) || (bool) $input['useMedia'] ) && function_exists( 'blocksmith_ability_search_media' ) ) {
-		$found = blocksmith_ability_search_media(
-			array(
-				'query' => $media_query,
-				'limit' => 8,
-			)
-		);
-		$media = $found['items'];
-	}
+	/**
+	 * Filters the Blocksmith context providers.
+	 *
+	 * @param array<string, array<string, mixed>> $providers Provider definitions keyed by slug.
+	 */
+	return apply_filters( 'blocksmith_context_providers', $providers );
+}
 
-	$links = array();
-	if ( ( ! array_key_exists( 'useInternalLinks', $input ) || (bool) $input['useInternalLinks'] ) && function_exists( 'blocksmith_ability_search_internal_links' ) ) {
-		// List existing site content (no query) so the model knows what pages it
-		// can actually link to, rather than searching by the prompt text.
-		$found = blocksmith_ability_search_internal_links(
-			array(
-				'query' => '',
-				'limit' => 15,
+/**
+ * Gather grounding context by running every enabled provider's gatherer.
+ *
+ * @param string               $query Query used for relevance (usually the prompt/instruction).
+ * @param array<string, mixed> $input Ability input (read for provider enable flags).
+ * @return array{input: array<string, mixed>, query: string, data: array<string, mixed>, enabled: list<string>}
+ */
+function blocksmith_gather_context( string $query, array $input ): array {
+	$data    = array();
+	$enabled = array();
+
+	foreach ( blocksmith_context_providers() as $key => $provider ) {
+		if ( isset( $provider['enabled'] ) && ! ( $provider['enabled'] )( $input ) ) {
+			continue;
+		}
+		$enabled[]    = $key;
+		$data[ $key ] = isset( $provider['gather'] )
+			? ( $provider['gather'] )(
+				array(
+					'query' => $query,
+					'input' => $input,
+				)
 			)
-		);
-		$links = $found['items'];
+			: null;
 	}
 
 	return array(
-		'theme'   => $theme,
-		'allowed' => $allowed,
-		'media'   => $media,
-		'links'   => $links,
+		'input'   => $input,
+		'query'   => $query,
+		'data'    => $data,
+		'enabled' => $enabled,
 	);
 }
 
 /**
- * Render the shared grounding context into system-instruction lines.
- *
- * Wording is preservation-aware so it works for both fresh generation and
- * refinement of existing markup.
+ * Render all enabled providers into system-instruction lines.
  *
  * @param array<string, mixed> $ctx Output of blocksmith_gather_context().
  * @return list<string>
  */
 function blocksmith_context_grounding_lines( array $ctx ): array {
-	$theme       = $ctx['theme'] ?? array();
-	$allowed     = $ctx['allowed'] ?? array();
-	$media       = $ctx['media'] ?? array();
-	$links       = $ctx['links'] ?? array();
-	$color_slugs = wp_list_pluck( $theme['colors'] ?? array(), 'slug' );
-	$font_slugs  = wp_list_pluck( $theme['fontFamilies'] ?? array(), 'slug' );
+	$providers = blocksmith_context_providers();
+	$lines     = array();
 
-	$lines   = array();
-	$lines[] = 'Constraints:';
-	$lines[] = '- Use ONLY these registered block types: ' . implode( ', ', $allowed ) . '.';
-	$lines[] = '- Never invent image URLs. Preserve any image already present; if you add an image, use ONLY one from the "Available images" list below.';
-	$lines[] = '- Never invent internal links. Preserve existing links; for new links to this site use ONLY URLs from the "Available internal links" list below.';
-
-	if ( $color_slugs ) {
-		$lines[] = '- When setting colors, use theme color slugs (e.g. {"backgroundColor":"' . $color_slugs[0] . '"}): ' . implode( ', ', $color_slugs ) . '.';
-	}
-	if ( $font_slugs ) {
-		$lines[] = '- When setting fonts, use theme font family slugs (e.g. {"fontFamily":"' . $font_slugs[0] . '"}): ' . implode( ', ', $font_slugs ) . '.';
-	}
-	if ( ! empty( $theme['layout']['contentSize'] ) ) {
-		$lines[] = '- The theme content width is ' . $theme['layout']['contentSize'] . ' (wide: ' . (string) ( $theme['layout']['wideSize'] ?? '' ) . '); design within that.';
-	}
-
-	$lines[] = '';
-	if ( $media ) {
-		$lines[] = 'Available images. Use core/image ONLY with one of these; set the block "id" attribute and the <img> src to the EXACT id and url shown, and use the provided alt text:';
-		foreach ( $media as $item ) {
-			$lines[] = sprintf(
-				'- id %d | %dx%d | "%s" | url: %s',
-				(int) $item['id'],
-				(int) $item['width'],
-				(int) $item['height'],
-				'' !== (string) $item['alt'] ? (string) $item['alt'] : (string) $item['title'],
-				(string) $item['url']
-			);
+	foreach ( (array) ( $ctx['enabled'] ?? array() ) as $key ) {
+		if ( empty( $providers[ $key ]['render'] ) ) {
+			continue;
 		}
-	} else {
-		$lines[] = 'No media library images are available. Do not add image blocks.';
-	}
-
-	if ( $links ) {
-		$lines[] = '';
-		$lines[] = 'Available internal links. For links to this site, use ONLY these URLs; choose link text that fits the destination:';
-		foreach ( $links as $link ) {
-			$lines[] = sprintf( '- "%s" (%s): %s', (string) $link['title'], (string) $link['type'], (string) $link['url'] );
+		$section = call_user_func( $providers[ $key ]['render'], $ctx['data'][ $key ] ?? null, $ctx['input'] ?? array() );
+		if ( ! empty( $section ) ) {
+			$lines = array_merge( $lines, $section, array( '' ) );
 		}
 	}
 
@@ -127,10 +127,6 @@ function blocksmith_context_grounding_lines( array $ctx ): array {
 
 /**
  * Validate, normalise and repair model-produced block markup.
- *
- * Parses the markup, ensures it contains real blocks, collects any unregistered
- * block names as warnings, round-trips through serialize_blocks(), and repairs
- * internal links against the context's link catalogue.
  *
  * @param string               $markup Raw block markup from the model.
  * @param array<string, mixed> $ctx    Output of blocksmith_gather_context().
@@ -145,10 +141,10 @@ function blocksmith_finalize_markup( string $markup, array $ctx ) {
 	$warnings = array();
 	blocksmith_collect_unregistered_blocks( $parsed, WP_Block_Type_Registry::get_instance(), $warnings );
 
-	$out = serialize_blocks( $parsed );
-
-	if ( ! empty( $ctx['links'] ) && function_exists( 'blocksmith_repair_internal_links' ) ) {
-		list( $out ) = blocksmith_repair_internal_links( $out, $ctx['links'] );
+	$out   = serialize_blocks( $parsed );
+	$links = $ctx['data']['links'] ?? array();
+	if ( ! empty( $links ) && function_exists( 'blocksmith_repair_internal_links' ) ) {
+		list( $out ) = blocksmith_repair_internal_links( $out, $links );
 	}
 
 	return array(
@@ -158,9 +154,142 @@ function blocksmith_finalize_markup( string $markup, array $ctx ) {
 }
 
 /**
+ * Render: theme design tokens.
+ *
+ * @param array<string, mixed> $theme Theme context.
+ * @param array<string, mixed> $input Ability input.
+ * @return list<string>
+ */
+function blocksmith_render_theme_context( $theme, array $input ): array {
+	$theme       = is_array( $theme ) ? $theme : array();
+	$color_slugs = wp_list_pluck( $theme['colors'] ?? array(), 'slug' );
+	$font_slugs  = wp_list_pluck( $theme['fontFamilies'] ?? array(), 'slug' );
+
+	$lines = array();
+	if ( $color_slugs ) {
+		$lines[] = 'Theme color slugs (use for color attributes, e.g. {"backgroundColor":"' . $color_slugs[0] . '"}): ' . implode( ', ', $color_slugs ) . '.';
+	}
+	if ( $font_slugs ) {
+		$lines[] = 'Theme font family slugs (e.g. {"fontFamily":"' . $font_slugs[0] . '"}): ' . implode( ', ', $font_slugs ) . '.';
+	}
+	if ( ! empty( $theme['layout']['contentSize'] ) ) {
+		$lines[] = 'Theme content width: ' . $theme['layout']['contentSize'] . ' (wide: ' . (string) ( $theme['layout']['wideSize'] ?? '' ) . ').';
+	}
+	if ( $lines ) {
+		array_unshift( $lines, 'Theme design tokens — stay on-theme:' );
+	}
+	return $lines;
+}
+
+/**
+ * Render: available blocks, separating site-specific (custom) blocks from core.
+ *
+ * @param array<int, array<string, mixed>> $blocks Block list from list-blocks.
+ * @param array<string, mixed>             $input  Ability input.
+ * @return list<string>
+ */
+function blocksmith_render_blocks_context( $blocks, array $input ): array {
+	$blocks = is_array( $blocks ) ? $blocks : array();
+	$core   = array();
+	$custom = array();
+
+	foreach ( $blocks as $block ) {
+		$name = (string) ( $block['name'] ?? '' );
+		if ( '' === $name ) {
+			continue;
+		}
+		if ( str_starts_with( $name, 'core/' ) ) {
+			$core[] = $name;
+		} else {
+			$title    = (string) ( $block['title'] ?? $name );
+			$custom[] = $name . ( '' !== $title ? ' (' . $title . ')' : '' );
+		}
+	}
+
+	$lines = array( 'Use ONLY registered block types listed here.' );
+	if ( $custom ) {
+		$lines[] = 'Site-specific / custom blocks — these are unique to this site; PREFER them when they fit the content: ' . implode( ', ', $custom ) . '.';
+	}
+	if ( $core ) {
+		$lines[] = 'Core blocks available: ' . implode( ', ', $core ) . '.';
+	}
+	return $lines;
+}
+
+/**
+ * Render: available section patterns.
+ *
+ * @param array<int, array<string, mixed>> $patterns Pattern catalogue.
+ * @param array<string, mixed>             $input    Ability input.
+ * @return list<string>
+ */
+function blocksmith_render_patterns_context( $patterns, array $input ): array {
+	$patterns = is_array( $patterns ) ? $patterns : array();
+	if ( empty( $patterns ) ) {
+		return array();
+	}
+
+	$lines = array( 'Available section patterns — these are designed, reusable sections for this site. PREFER composing the layout from patterns that fit the request, adapting their structure and filling them with relevant content:' );
+	foreach ( $patterns as $pattern ) {
+		$title = '' !== (string) ( $pattern['title'] ?? '' ) ? (string) $pattern['title'] : (string) ( $pattern['name'] ?? '' );
+		$cats  = ! empty( $pattern['categories'] ) ? ' [' . implode( ', ', (array) $pattern['categories'] ) . ']' : '';
+		$used  = ! empty( $pattern['blocks'] ) ? ' — blocks: ' . implode( ', ', (array) $pattern['blocks'] ) : '';
+		$lines[] = sprintf( '- %s%s%s', $title, $cats, $used );
+	}
+	return $lines;
+}
+
+/**
+ * Render: available media images.
+ *
+ * @param array<int, array<string, mixed>> $media Media catalogue.
+ * @param array<string, mixed>             $input Ability input.
+ * @return list<string>
+ */
+function blocksmith_render_media_context( $media, array $input ): array {
+	$media = is_array( $media ) ? $media : array();
+	if ( empty( $media ) ) {
+		return array( 'No media library images are available. Do not add image blocks; never invent image URLs.' );
+	}
+
+	$lines = array( 'Available images — never invent image URLs; preserve any image already present; if you add an image use core/image with ONLY one of these (exact id + url + alt):' );
+	foreach ( $media as $item ) {
+		$lines[] = sprintf(
+			'- id %d | %dx%d | "%s" | url: %s',
+			(int) $item['id'],
+			(int) $item['width'],
+			(int) $item['height'],
+			'' !== (string) $item['alt'] ? (string) $item['alt'] : (string) $item['title'],
+			(string) $item['url']
+		);
+	}
+	return $lines;
+}
+
+/**
+ * Render: available internal links.
+ *
+ * @param array<int, array<string, mixed>> $links Internal-link catalogue.
+ * @param array<string, mixed>             $input Ability input.
+ * @return list<string>
+ */
+function blocksmith_render_links_context( $links, array $input ): array {
+	$links = is_array( $links ) ? $links : array();
+	if ( empty( $links ) ) {
+		return array();
+	}
+
+	$lines = array( 'Available internal links — never invent internal URLs; preserve existing links; for new links to this site use ONLY these:' );
+	foreach ( $links as $link ) {
+		$lines[] = sprintf( '- "%s" (%s): %s', (string) $link['title'], (string) $link['type'], (string) $link['url'] );
+	}
+	return $lines;
+}
+
+/**
  * Recursively collect block names that are not registered on this site.
  *
- * @param array<int, array<string, mixed>> $blocks   Parsed blocks (parse_blocks output).
+ * @param array<int, array<string, mixed>> $blocks   Parsed blocks.
  * @param WP_Block_Type_Registry           $registry Block registry.
  * @param list<string>                     $warnings Accumulator (by reference).
  */
@@ -172,6 +301,23 @@ function blocksmith_collect_unregistered_blocks( array $blocks, WP_Block_Type_Re
 		}
 		if ( ! empty( $block['innerBlocks'] ) && is_array( $block['innerBlocks'] ) ) {
 			blocksmith_collect_unregistered_blocks( $block['innerBlocks'], $registry, $warnings );
+		}
+	}
+}
+
+/**
+ * Recursively collect the distinct block names used in parsed blocks.
+ *
+ * @param array<int, array<string, mixed>> $blocks Parsed blocks.
+ * @param list<string>                     $names  Accumulator (by reference).
+ */
+function blocksmith_collect_block_names( array $blocks, array &$names ): void {
+	foreach ( $blocks as $block ) {
+		if ( ! empty( $block['blockName'] ) ) {
+			$names[] = (string) $block['blockName'];
+		}
+		if ( ! empty( $block['innerBlocks'] ) && is_array( $block['innerBlocks'] ) ) {
+			blocksmith_collect_block_names( $block['innerBlocks'], $names );
 		}
 	}
 }

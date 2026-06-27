@@ -1,0 +1,185 @@
+<?php
+/**
+ * The blocksmith/list-patterns ability + pattern context helper.
+ *
+ * Patterns are designed, reusable *sections* — the unit most authors actually
+ * think in. Surfacing the site's registered patterns (theme + core + custom)
+ * lets the AI compose from real sections and learn which (often custom) blocks
+ * each section uses.
+ *
+ * @package Blocksmith
+ */
+
+declare( strict_types=1 );
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+add_action(
+	'wp_abilities_api_init',
+	static function (): void {
+		wp_register_ability(
+			'blocksmith/list-patterns',
+			array(
+				'label'               => __( 'List Patterns', 'blocksmith' ),
+				'description'         => __( 'Lists the block patterns (reusable sections) registered on this site, with their categories and the block types they use. Optionally includes each pattern\'s block markup.', 'blocksmith' ),
+				'category'            => BLOCKSMITH_ABILITY_CATEGORY,
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'query'          => array(
+							'type'        => 'string',
+							'description' => 'Optional search term matched against pattern title and description.',
+						),
+						'category'       => array(
+							'type'        => 'string',
+							'description' => 'Optional pattern category slug to filter by.',
+						),
+						'includeContent' => array(
+							'type'        => 'boolean',
+							'description' => 'Whether to include each pattern\'s full block markup. Default false (catalog only).',
+							'default'     => false,
+						),
+						'limit'          => array(
+							'type'        => 'integer',
+							'description' => 'Maximum number of patterns to return.',
+							'minimum'     => 1,
+							'maximum'     => 100,
+							'default'     => 40,
+						),
+					),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array(
+					'type'       => 'object',
+					'properties' => array(
+						'items' => array(
+							'type'  => 'array',
+							'items' => array(
+								'type'       => 'object',
+								'properties' => array(
+									'name'        => array( 'type' => 'string' ),
+									'title'       => array( 'type' => 'string' ),
+									'description' => array( 'type' => 'string' ),
+									'categories'  => array(
+										'type'  => 'array',
+										'items' => array( 'type' => 'string' ),
+									),
+									'blocks'      => array(
+										'type'  => 'array',
+										'items' => array( 'type' => 'string' ),
+									),
+									'content'     => array( 'type' => 'string' ),
+								),
+							),
+						),
+						'total' => array( 'type' => 'integer' ),
+					),
+				),
+				'execute_callback'    => 'blocksmith_ability_list_patterns',
+				'permission_callback' => static fn (): bool => current_user_can( 'edit_posts' ),
+				'meta'                => array(
+					'show_in_rest' => true,
+					'annotations'  => array(
+						'readonly'   => true,
+						'idempotent' => true,
+					),
+				),
+			)
+		);
+	}
+);
+
+/**
+ * Execute callback for blocksmith/list-patterns.
+ *
+ * @param array<string, mixed> $input Validated input.
+ * @return array<string, mixed> Patterns.
+ */
+function blocksmith_ability_list_patterns( array $input = array() ): array {
+	$query           = trim( (string) ( $input['query'] ?? '' ) );
+	$category        = trim( (string) ( $input['category'] ?? '' ) );
+	$include_content = (bool) ( $input['includeContent'] ?? false );
+	$limit           = max( 1, min( 100, (int) ( $input['limit'] ?? 40 ) ) );
+
+	$items = blocksmith_get_patterns_for_context( 1000, $include_content );
+
+	if ( '' !== $query ) {
+		$needle = strtolower( $query );
+		$items  = array_values(
+			array_filter(
+				$items,
+				static fn ( array $p ): bool =>
+					str_contains( strtolower( $p['title'] ), $needle )
+					|| str_contains( strtolower( $p['description'] ), $needle )
+			)
+		);
+	}
+
+	if ( '' !== $category ) {
+		$items = array_values(
+			array_filter(
+				$items,
+				static fn ( array $p ): bool => in_array( $category, $p['categories'], true )
+			)
+		);
+	}
+
+	$total = count( $items );
+	$items = array_slice( $items, 0, $limit );
+
+	return array(
+		'items' => $items,
+		'total' => $total,
+	);
+}
+
+/**
+ * Build a compact catalogue of registered patterns for context injection.
+ *
+ * @param int  $limit           Maximum patterns to return.
+ * @param bool $include_content Whether to include each pattern's block markup.
+ * @return array<int, array<string, mixed>>
+ */
+function blocksmith_get_patterns_for_context( int $limit = 40, bool $include_content = false ): array {
+	if ( ! class_exists( 'WP_Block_Patterns_Registry' ) ) {
+		return array();
+	}
+
+	$registered = WP_Block_Patterns_Registry::get_instance()->get_all_registered();
+	$out        = array();
+
+	foreach ( $registered as $pattern ) {
+		// Skip patterns hidden from the inserter (utility/hidden patterns).
+		if ( isset( $pattern['inserter'] ) && false === $pattern['inserter'] ) {
+			continue;
+		}
+
+		$content = (string) ( $pattern['content'] ?? '' );
+		$blocks  = array();
+		if ( '' !== $content ) {
+			$names = array();
+			blocksmith_collect_block_names( parse_blocks( $content ), $names );
+			$blocks = array_slice( array_values( array_unique( $names ) ), 0, 12 );
+		}
+
+		$item = array(
+			'name'        => (string) ( $pattern['name'] ?? '' ),
+			'title'       => (string) ( $pattern['title'] ?? '' ),
+			'description' => (string) ( $pattern['description'] ?? '' ),
+			'categories'  => array_values( array_map( 'strval', (array) ( $pattern['categories'] ?? array() ) ) ),
+			'blocks'      => $blocks,
+		);
+		if ( $include_content ) {
+			$item['content'] = $content;
+		}
+
+		$out[] = $item;
+		if ( count( $out ) >= $limit ) {
+			break;
+		}
+	}
+
+	return $out;
+}

@@ -53,6 +53,11 @@ add_action(
 							'description' => 'Whether to offer real internal links (pages/posts). Default true.',
 							'default'     => true,
 						),
+						'usePatterns'      => array(
+							'type'        => 'boolean',
+							'description' => 'Whether to offer the site\'s registered section patterns. Default true.',
+							'default'     => true,
+						),
 					),
 					'required'             => array( 'blockMarkup', 'instruction' ),
 					'additionalProperties' => false,
