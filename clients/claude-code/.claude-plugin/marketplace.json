@@ -1,0 +1,13 @@
+{
+  "name": "blocksmith",
+  "owner": {
+    "name": "invocation97"
+  },
+  "plugins": [
+    {
+      "name": "blocksmith",
+      "source": ".",
+      "description": "Drive your WordPress site's Blocksmith tools (generate/fill/refine Gutenberg layouts) from Claude Code over MCP."
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "blocksmith",
+  "description": "Build on-theme Gutenberg layouts on your self-hosted WordPress site from Claude Code, via the Blocksmith MCP server.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Blocksmith"
+  },
+  "homepage": "https://github.com/invocation97/blocksmith-plugin",
+  "license": "GPL-2.0-or-later"
+}
