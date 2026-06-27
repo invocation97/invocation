@@ -26,6 +26,8 @@ import { parse } from '@wordpress/blocks';
 import apiFetch from '@wordpress/api-fetch';
 import { __ } from '@wordpress/i18n';
 
+import './refine';
+
 const SIDEBAR_NAME = 'blocksmith-sidebar';
 const SIDEBAR_ICON = 'layout';
 
