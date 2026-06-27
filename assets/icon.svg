@@ -1,15 +1,45 @@
 <svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#5B4BE6"/>
-      <stop offset="1" stop-color="#9333EA"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#201B26"/>
+      <stop offset="1" stop-color="#0A090C"/>
     </linearGradient>
+    <radialGradient id="forge" cx="50%" cy="72%" r="58%">
+      <stop offset="0" stop-color="#FF6A00" stop-opacity="0.5"/>
+      <stop offset="0.5" stop-color="#E2452A" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#E2452A" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EEF1F6"/>
+      <stop offset="1" stop-color="#8C94A4"/>
+    </linearGradient>
+    <linearGradient id="hot" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE573"/>
+      <stop offset="0.55" stop-color="#FF7A18"/>
+      <stop offset="1" stop-color="#E2452A"/>
+    </linearGradient>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="3.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
   </defs>
+
   <rect width="256" height="256" rx="56" fill="url(#bg)"/>
-  <!-- assembling content blocks -->
-  <rect x="72" y="66" width="112" height="34" rx="11" fill="#ffffff"/>
-  <rect x="58" y="112" width="140" height="34" rx="11" fill="#ffffff" opacity="0.82"/>
-  <rect x="84" y="158" width="88" height="34" rx="11" fill="#ffffff" opacity="0.64"/>
-  <!-- AI spark -->
-  <path d="M210 42 l6 11 11 6 -11 6 -6 11 -6 -11 -11 -6 11 -6 z" fill="#FFD43B"/>
+  <rect width="256" height="256" rx="56" fill="url(#forge)"/>
+
+  <!-- ember sparks rising from the work -->
+  <g filter="url(#glow)">
+    <circle cx="150" cy="58" r="4" fill="#FFB020"/>
+    <circle cx="172" cy="78" r="3" fill="#FF7A18"/>
+    <circle cx="131" cy="44" r="2.6" fill="#FFD43B"/>
+    <circle cx="188" cy="62" r="2.2" fill="#FF6A00"/>
+  </g>
+
+  <!-- glowing forged block resting on the anvil face -->
+  <g filter="url(#glow)">
+    <rect x="119" y="84" width="36" height="27" rx="7" transform="rotate(-8 137 97)" fill="url(#hot)"/>
+  </g>
+
+  <!-- anvil -->
+  <path d="M54 132 L132 117 L185 117 Q193 117 193 125 L193 139 Q193 147 185 147 L151 147 L147 168 L168 168 Q176 168 176 176 L176 189 Q176 197 168 197 L96 197 Q88 197 88 189 L88 176 Q88 168 96 168 L117 168 L113 147 L95 147 Q77 147 63 141 Z" fill="url(#steel)"/>
 </svg>

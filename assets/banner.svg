@@ -1,29 +1,59 @@
 <svg width="772" height="250" viewBox="0 0 772 250" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#4F46E5"/>
-      <stop offset="1" stop-color="#9333EA"/>
+    <linearGradient id="bbg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14121A"/>
+      <stop offset="1" stop-color="#080709"/>
     </linearGradient>
+    <radialGradient id="bforge" cx="15%" cy="60%" r="40%">
+      <stop offset="0" stop-color="#FF6A00" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#E2452A" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#201B26"/>
+      <stop offset="1" stop-color="#0A090C"/>
+    </linearGradient>
+    <radialGradient id="forge" cx="50%" cy="72%" r="58%">
+      <stop offset="0" stop-color="#FF6A00" stop-opacity="0.5"/>
+      <stop offset="0.5" stop-color="#E2452A" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#E2452A" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EEF1F6"/>
+      <stop offset="1" stop-color="#8C94A4"/>
+    </linearGradient>
+    <linearGradient id="hot" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE573"/>
+      <stop offset="0.55" stop-color="#FF7A18"/>
+      <stop offset="1" stop-color="#E2452A"/>
+    </linearGradient>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="3.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
   </defs>
-  <rect width="772" height="250" fill="url(#bg)"/>
 
-  <!-- faint blocks motif on the right -->
-  <g opacity="0.08" fill="#ffffff">
-    <rect x="566" y="44" width="170" height="38" rx="12"/>
-    <rect x="544" y="106" width="214" height="38" rx="12"/>
-    <rect x="586" y="168" width="132" height="38" rx="12"/>
-  </g>
+  <rect width="772" height="250" fill="url(#bbg)"/>
+  <rect width="772" height="250" fill="url(#bforge)"/>
 
-  <!-- icon mark -->
-  <g transform="translate(56,57)">
-    <rect width="136" height="136" rx="30" fill="#ffffff" opacity="0.14"/>
-    <rect x="30" y="34" width="76" height="20" rx="7" fill="#ffffff"/>
-    <rect x="22" y="62" width="92" height="20" rx="7" fill="#ffffff" opacity="0.82"/>
-    <rect x="40" y="90" width="60" height="20" rx="7" fill="#ffffff" opacity="0.66"/>
-    <path d="M104 24 l4 8 8 4 -8 4 -4 8 -4 -8 -8 -4 8 -4 z" fill="#FFD43B"/>
+  <!-- mark (the icon, scaled into a 136px panel) -->
+  <g transform="translate(44,57) scale(0.531)">
+    <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+    <rect width="256" height="256" rx="56" fill="url(#forge)"/>
+    <g filter="url(#glow)">
+      <circle cx="150" cy="58" r="4" fill="#FFB020"/>
+      <circle cx="172" cy="78" r="3" fill="#FF7A18"/>
+      <circle cx="131" cy="44" r="2.6" fill="#FFD43B"/>
+      <circle cx="188" cy="62" r="2.2" fill="#FF6A00"/>
+    </g>
+    <g filter="url(#glow)">
+      <rect x="119" y="84" width="36" height="27" rx="7" transform="rotate(-8 137 97)" fill="url(#hot)"/>
+    </g>
+    <path d="M54 132 L132 117 L185 117 Q193 117 193 125 L193 139 Q193 147 185 147 L151 147 L147 168 L168 168 Q176 168 176 176 L176 189 Q176 197 168 197 L96 197 Q88 197 88 189 L88 176 Q88 168 96 168 L117 168 L113 147 L95 147 Q77 147 63 141 Z" fill="url(#steel)"/>
   </g>
 
   <!-- wordmark -->
-  <text x="232" y="118" font-family="'Helvetica Neue',Arial,sans-serif" font-size="62" font-weight="700" fill="#ffffff">Blocksmith</text>
-  <text x="234" y="158" font-family="'Helvetica Neue',Arial,sans-serif" font-size="23" font-weight="400" fill="#E9E5FF">AI page building, grounded in your blocks.</text>
+  <text x="210" y="120" font-family="'Helvetica Neue',Arial,sans-serif" font-size="64" font-weight="800" letter-spacing="-1">
+    <tspan fill="#F4F6FA">Block</tspan><tspan fill="url(#hot)">smith</tspan>
+  </text>
+  <text x="212" y="158" font-family="'Helvetica Neue',Arial,sans-serif" font-size="23" font-weight="400" fill="#9AA2B1">Forge on-theme pages, block by block.</text>
 </svg>
