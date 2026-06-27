@@ -71,6 +71,7 @@ function blocksmith_bootstrap(): void {
 	}
 
 	require_once BLOCKSMITH_DIR . 'inc/abilities.php';
+	require_once BLOCKSMITH_DIR . 'inc/search-media.php';
 	require_once BLOCKSMITH_DIR . 'inc/generate-layout.php';
 	require_once BLOCKSMITH_DIR . 'inc/editor.php';
 }

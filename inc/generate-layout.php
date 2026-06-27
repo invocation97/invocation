@@ -47,6 +47,11 @@ add_action(
 							'type'        => 'string',
 							'description' => 'Optional description of the target audience.',
 						),
+						'useMedia'  => array(
+							'type'        => 'boolean',
+							'description' => 'Whether to include real images from the media library. Default true.',
+							'default'     => true,
+						),
 					),
 					'required'             => array( 'prompt' ),
 					'additionalProperties' => false,
@@ -103,10 +108,26 @@ function blocksmith_ability_generate_layout( array $input = array() ) {
 		return new WP_Error( 'blocksmith_no_ai_client', __( 'The WordPress AI Client is not available.', 'blocksmith' ) );
 	}
 
-	$theme        = blocksmith_ability_get_theme_context();
-	$blocks       = blocksmith_ability_list_blocks();
-	$allowed      = wp_list_pluck( $blocks['blocks'], 'name' );
-	$system       = blocksmith_build_layout_system_instruction( $theme, $allowed, $input );
+	$theme   = blocksmith_ability_get_theme_context();
+	$blocks  = blocksmith_ability_list_blocks();
+	$allowed = wp_list_pluck( $blocks['blocks'], 'name' );
+
+	// Media: WP 7.0's AI client does not run the tool loop in a single call, so
+	// rather than letting the model "search" mid-generation we retrieve relevant
+	// images up front and inject them as a catalogue the model must pick from.
+	$use_media = ! array_key_exists( 'useMedia', $input ) || (bool) $input['useMedia'];
+	$media     = array();
+	if ( $use_media && function_exists( 'blocksmith_ability_search_media' ) ) {
+		$found = blocksmith_ability_search_media(
+			array(
+				'query' => $prompt,
+				'limit' => 8,
+			)
+		);
+		$media = $found['items'];
+	}
+
+	$system = blocksmith_build_layout_system_instruction( $theme, $allowed, $input, $media );
 	$json_schema  = array(
 		'type'                 => 'object',
 		'properties'           => array(
@@ -165,12 +186,13 @@ function blocksmith_ability_generate_layout( array $input = array() ) {
 /**
  * Build the system instruction grounding the model in this site's theme + blocks.
  *
- * @param array<string, mixed> $theme   Output of blocksmith_ability_get_theme_context().
- * @param list<string>         $allowed Registered block names.
- * @param array<string, mixed> $input   Ability input.
+ * @param array<string, mixed>             $theme   Output of blocksmith_ability_get_theme_context().
+ * @param list<string>                     $allowed Registered block names.
+ * @param array<string, mixed>             $input   Ability input.
+ * @param array<int, array<string, mixed>> $media   Available media items to offer as a catalogue.
  * @return string
  */
-function blocksmith_build_layout_system_instruction( array $theme, array $allowed, array $input ): string {
+function blocksmith_build_layout_system_instruction( array $theme, array $allowed, array $input, array $media = array() ): string {
 	$color_slugs = wp_list_pluck( $theme['colors'] ?? array(), 'slug' );
 	$font_slugs  = wp_list_pluck( $theme['fontFamilies'] ?? array(), 'slug' );
 	$tone        = (string) ( $input['tone'] ?? 'professional' );
@@ -186,7 +208,7 @@ function blocksmith_build_layout_system_instruction( array $theme, array $allowe
 		'- Use ONLY these registered block types: ' . implode( ', ', $allowed ) . '.',
 		'- Prefer core layout blocks (core/group, core/columns, core/column, core/cover, core/buttons) to create structured, responsive sections.',
 		'- Establish a clear heading hierarchy (a single h1 or h2 lead, then subsections).',
-		'- Never invent image URLs. Use core/image only with placeholder-free content, or omit images.',
+		'- Never invent image URLs. Only use images from the "Available images" list below (when present); otherwise omit image blocks entirely.',
 	);
 
 	if ( $color_slugs ) {
@@ -197,6 +219,23 @@ function blocksmith_build_layout_system_instruction( array $theme, array $allowe
 	}
 	if ( ! empty( $theme['layout']['contentSize'] ) ) {
 		$lines[] = '- The theme content width is ' . $theme['layout']['contentSize'] . ' (wide: ' . (string) ( $theme['layout']['wideSize'] ?? '' ) . '); design within that.';
+	}
+
+	$lines[] = '';
+	if ( $media ) {
+		$lines[] = 'Available images. Use core/image ONLY with one of these; set the block "id" attribute and the <img> src to the EXACT id and url shown, and use the provided alt text:';
+		foreach ( $media as $item ) {
+			$lines[] = sprintf(
+				'- id %d | %dx%d | "%s" | url: %s',
+				(int) $item['id'],
+				(int) $item['width'],
+				(int) $item['height'],
+				'' !== (string) $item['alt'] ? (string) $item['alt'] : (string) $item['title'],
+				(string) $item['url']
+			);
+		}
+	} else {
+		$lines[] = 'No media library images are available. Do not include any image blocks — design with text, color, and layout only.';
 	}
 
 	$lines[] = '';
