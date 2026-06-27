@@ -5,8 +5,8 @@
   "description": "Build styled Gutenberg page content with AI, grounded in your own block theme.",
   "license": "GPL-2.0-or-later",
   "scripts": {
-    "build": "wp-scripts build src/index.js",
-    "start": "wp-scripts start src/index.js",
+    "build": "wp-scripts build src/index.js src/admin.js",
+    "start": "wp-scripts start src/index.js src/admin.js",
     "lint:js": "wp-scripts lint-js src"
   },
   "devDependencies": {

@@ -1,0 +1,323 @@
+<?php
+/**
+ * Site Brief: a structured, user-editable summary of the site that grounds every
+ * generation in the site's purpose, audience, voice and offerings.
+ *
+ * Stored in the `blocksmith_site_brief` option (exposed via /wp/v2/settings so
+ * the admin app can read/write it), produced by the blocksmith/gather-site-context
+ * ability, and injected into prompts as a context provider.
+ *
+ * @package Blocksmith
+ */
+
+declare( strict_types=1 );
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+const BLOCKSMITH_SITE_BRIEF_OPTION = 'blocksmith_site_brief';
+
+/**
+ * Default (empty) brief shape.
+ *
+ * @return array<string, mixed>
+ */
+function blocksmith_default_site_brief(): array {
+	return array(
+		'purpose'     => '',
+		'audience'    => '',
+		'toneVoice'   => '',
+		'offerings'   => array(),
+		'keyTerms'    => array(),
+		'avoid'       => array(),
+		'generatedAt' => '',
+	);
+}
+
+/**
+ * Read the saved site brief.
+ *
+ * @return array<string, mixed>
+ */
+function blocksmith_get_site_brief(): array {
+	$brief = get_option( BLOCKSMITH_SITE_BRIEF_OPTION, array() );
+	return wp_parse_args( is_array( $brief ) ? $brief : array(), blocksmith_default_site_brief() );
+}
+
+/**
+ * Whether the brief has any meaningful content.
+ */
+function blocksmith_has_site_brief(): bool {
+	$brief = blocksmith_get_site_brief();
+	foreach ( array( 'purpose', 'audience', 'toneVoice' ) as $key ) {
+		if ( '' !== trim( (string) $brief[ $key ] ) ) {
+			return true;
+		}
+	}
+	return ! empty( $brief['offerings'] ) || ! empty( $brief['keyTerms'] );
+}
+
+/**
+ * Register the brief option (also exposing it via the REST settings endpoint).
+ */
+add_action(
+	'init',
+	static function (): void {
+		register_setting(
+			'options',
+			BLOCKSMITH_SITE_BRIEF_OPTION,
+			array(
+				'type'         => 'object',
+				'default'      => blocksmith_default_site_brief(),
+				'show_in_rest' => array(
+					'schema' => array(
+						'type'                 => 'object',
+						'properties'           => array(
+							'purpose'     => array( 'type' => 'string' ),
+							'audience'    => array( 'type' => 'string' ),
+							'toneVoice'   => array( 'type' => 'string' ),
+							'offerings'   => array(
+								'type'  => 'array',
+								'items' => array( 'type' => 'string' ),
+							),
+							'keyTerms'    => array(
+								'type'  => 'array',
+								'items' => array( 'type' => 'string' ),
+							),
+							'avoid'       => array(
+								'type'  => 'array',
+								'items' => array( 'type' => 'string' ),
+							),
+							'generatedAt' => array( 'type' => 'string' ),
+						),
+						'additionalProperties' => false,
+					),
+				),
+			)
+		);
+	}
+);
+
+/**
+ * Register the gather-site-context ability.
+ */
+add_action(
+	'wp_abilities_api_init',
+	static function (): void {
+		wp_register_ability(
+			'blocksmith/gather-site-context',
+			array(
+				'label'               => __( 'Gather Site Context', 'blocksmith' ),
+				'description'         => __( 'Analyzes the site (identity plus a sample of published pages and posts) and produces a structured Site Brief — purpose, audience, brand voice, offerings, key terms and things to avoid — saving it for use in future generations.', 'blocksmith' ),
+				'category'            => BLOCKSMITH_ABILITY_CATEGORY,
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'maxPages' => array(
+							'type'        => 'integer',
+							'description' => 'How many recent published pages/posts to analyze.',
+							'minimum'     => 1,
+							'maximum'     => 50,
+							'default'     => 15,
+						),
+					),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array(
+					'type'       => 'object',
+					'properties' => array(
+						'purpose'     => array( 'type' => 'string' ),
+						'audience'    => array( 'type' => 'string' ),
+						'toneVoice'   => array( 'type' => 'string' ),
+						'offerings'   => array(
+							'type'  => 'array',
+							'items' => array( 'type' => 'string' ),
+						),
+						'keyTerms'    => array(
+							'type'  => 'array',
+							'items' => array( 'type' => 'string' ),
+						),
+						'avoid'       => array(
+							'type'  => 'array',
+							'items' => array( 'type' => 'string' ),
+						),
+						'generatedAt' => array( 'type' => 'string' ),
+					),
+				),
+				'execute_callback'    => 'blocksmith_ability_gather_site_context',
+				'permission_callback' => static fn (): bool => current_user_can( 'manage_options' ),
+				'meta'                => array(
+					'show_in_rest' => true,
+					'annotations'  => array(
+						// Persists the brief option, so it modifies the environment.
+						'readonly'    => false,
+						'destructive' => false,
+						'idempotent'  => false,
+					),
+				),
+			)
+		);
+	}
+);
+
+/**
+ * Execute callback for blocksmith/gather-site-context.
+ *
+ * @param array<string, mixed> $input Validated input.
+ * @return array<string, mixed>|WP_Error The generated (and saved) brief.
+ */
+function blocksmith_ability_gather_site_context( array $input = array() ) {
+	if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
+		return new WP_Error( 'blocksmith_no_ai_client', __( 'The WordPress AI Client is not available.', 'blocksmith' ) );
+	}
+
+	$max   = max( 1, min( 50, (int) ( $input['maxPages'] ?? 15 ) ) );
+	$corpus = blocksmith_build_site_corpus( $max );
+
+	$system = implode(
+		"\n",
+		array(
+			'You analyze a WordPress site and produce a concise brand/content brief as JSON.',
+			'Be specific and grounded in the provided content — do not invent facts. Keep each text field to 1-3 sentences; keep list items short (a few words each). Leave a field empty if the content does not support it.',
+		)
+	);
+
+	$schema = array(
+		'type'                 => 'object',
+		'properties'           => array(
+			'purpose'   => array(
+				'type'        => 'string',
+				'description' => 'What the site is for, in 1-2 sentences.',
+			),
+			'audience'  => array(
+				'type'        => 'string',
+				'description' => 'Who the site is for.',
+			),
+			'toneVoice' => array(
+				'type'        => 'string',
+				'description' => 'The brand voice / writing tone.',
+			),
+			'offerings' => array(
+				'type'        => 'array',
+				'items'       => array( 'type' => 'string' ),
+				'description' => 'Key products, services, or topics.',
+			),
+			'keyTerms'  => array(
+				'type'        => 'array',
+				'items'       => array( 'type' => 'string' ),
+				'description' => 'Preferred terminology / vocabulary to use.',
+			),
+			'avoid'     => array(
+				'type'        => 'array',
+				'items'       => array( 'type' => 'string' ),
+				'description' => 'Words, claims, or styles to avoid.',
+			),
+		),
+		// OpenAI strict mode requires every property in `required`.
+		'required'             => array( 'purpose', 'audience', 'toneVoice', 'offerings', 'keyTerms', 'avoid' ),
+		'additionalProperties' => false,
+	);
+
+	$user_prompt = "Site name: " . get_bloginfo( 'name' ) . "\nTagline: " . get_bloginfo( 'description' ) . "\n\nContent sample:\n" . $corpus;
+
+	$response = blocksmith_generate_text( $user_prompt, $system, $schema );
+	if ( is_wp_error( $response ) ) {
+		return $response;
+	}
+
+	$data = json_decode( (string) $response, true );
+	if ( ! is_array( $data ) ) {
+		return new WP_Error( 'blocksmith_invalid_response', __( 'The AI response could not be parsed.', 'blocksmith' ) );
+	}
+
+	$brief                = wp_parse_args( $data, blocksmith_default_site_brief() );
+	$brief['generatedAt'] = current_time( 'mysql' );
+
+	update_option( BLOCKSMITH_SITE_BRIEF_OPTION, $brief );
+
+	return $brief;
+}
+
+/**
+ * Build a compact text corpus from recent published content.
+ *
+ * @param int $max Maximum posts/pages to include.
+ * @return string
+ */
+function blocksmith_build_site_corpus( int $max ): string {
+	$posts = get_posts(
+		array(
+			'post_type'   => array( 'page', 'post' ),
+			'post_status' => 'publish',
+			'numberposts' => $max,
+			'orderby'     => 'date',
+			'order'       => 'DESC',
+		)
+	);
+
+	$parts = array();
+	$total = 0;
+	foreach ( $posts as $post ) {
+		$text = wp_strip_all_tags( do_blocks( $post->post_content ) );
+		$text = trim( preg_replace( '/\s+/', ' ', $text ) );
+		$text = wp_trim_words( $text, 60, '…' );
+		$line = '- ' . get_the_title( $post ) . ': ' . $text;
+		$total += strlen( $line );
+		if ( $total > 6000 ) {
+			break;
+		}
+		$parts[] = $line;
+	}
+
+	return implode( "\n", $parts );
+}
+
+/**
+ * Register the Site Brief as a context provider (demonstrates the filter seam).
+ */
+add_filter(
+	'blocksmith_context_providers',
+	static function ( array $providers ): array {
+		$providers['brief'] = array(
+			'enabled' => static fn ( array $input ): bool =>
+				( ! array_key_exists( 'useSiteBrief', $input ) || (bool) $input['useSiteBrief'] ) && blocksmith_has_site_brief(),
+			'gather'  => static fn ( array $args ) => blocksmith_get_site_brief(),
+			'render'  => 'blocksmith_render_brief_context',
+		);
+		return $providers;
+	}
+);
+
+/**
+ * Render the Site Brief into system-instruction lines.
+ *
+ * @param mixed                $brief Site brief.
+ * @param array<string, mixed> $input Ability input.
+ * @return list<string>
+ */
+function blocksmith_render_brief_context( $brief, array $input ): array {
+	$brief = is_array( $brief ) ? $brief : array();
+	$lines = array( 'Site brief — keep all content consistent with this:' );
+
+	if ( '' !== trim( (string) ( $brief['purpose'] ?? '' ) ) ) {
+		$lines[] = '- Purpose: ' . $brief['purpose'];
+	}
+	if ( '' !== trim( (string) ( $brief['audience'] ?? '' ) ) ) {
+		$lines[] = '- Audience: ' . $brief['audience'];
+	}
+	if ( '' !== trim( (string) ( $brief['toneVoice'] ?? '' ) ) ) {
+		$lines[] = '- Voice/tone: ' . $brief['toneVoice'];
+	}
+	if ( ! empty( $brief['offerings'] ) ) {
+		$lines[] = '- Offerings: ' . implode( ', ', (array) $brief['offerings'] ) . '.';
+	}
+	if ( ! empty( $brief['keyTerms'] ) ) {
+		$lines[] = '- Preferred terms: ' . implode( ', ', (array) $brief['keyTerms'] ) . '.';
+	}
+	if ( ! empty( $brief['avoid'] ) ) {
+		$lines[] = '- Avoid: ' . implode( ', ', (array) $brief['avoid'] ) . '.';
+	}
+
+	return count( $lines ) > 1 ? $lines : array();
+}
