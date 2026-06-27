@@ -1,5 +1,5 @@
 /**
- * Blocksmith admin app — the Site Brief editor.
+ * Invocation admin app — the Site Brief editor.
  *
  * Loads/saves the brief via the REST settings endpoint and can generate it from
  * the site's own content via the gather-site-context ability.
@@ -22,7 +22,7 @@ import {
 import apiFetch from '@wordpress/api-fetch';
 import { __ } from '@wordpress/i18n';
 
-const OPTION = 'blocksmith_site_brief';
+const OPTION = 'invocation_site_brief';
 
 const DEFAULT_BRIEF = {
 	purpose: '',
@@ -62,7 +62,7 @@ function SiteBriefApp() {
 				method: 'POST',
 				data: { [ OPTION ]: brief },
 			} );
-			setNotice( { status: 'success', message: __( 'Site Brief saved.', 'blocksmith' ) } );
+			setNotice( { status: 'success', message: __( 'Site Brief saved.', 'invocation' ) } );
 		} catch ( e ) {
 			setNotice( { status: 'error', message: e.message } );
 		} finally {
@@ -75,19 +75,19 @@ function SiteBriefApp() {
 		setNotice( null );
 		try {
 			const result = await apiFetch( {
-				path: '/wp-abilities/v1/abilities/blocksmith/gather-site-context/run',
+				path: '/wp-abilities/v1/abilities/invocation/gather-site-context/run',
 				method: 'POST',
 				data: { input: {} },
 			} );
 			setBrief( { ...DEFAULT_BRIEF, ...result } );
 			setNotice( {
 				status: 'success',
-				message: __( 'Generated from your site and saved. Review and edit as needed.', 'blocksmith' ),
+				message: __( 'Generated from your site and saved. Review and edit as needed.', 'invocation' ),
 			} );
 		} catch ( e ) {
 			setNotice( {
 				status: 'error',
-				message: e.message || __( 'Generation failed. Check your AI Connector.', 'blocksmith' ),
+				message: e.message || __( 'Generation failed. Check your AI Connector.', 'invocation' ),
 			} );
 		} finally {
 			setIsGenerating( false );
@@ -98,7 +98,7 @@ function SiteBriefApp() {
 		return (
 			<Flex justify="flex-start" gap={ 2 } style={ { padding: '24px 0' } }>
 				<Spinner />
-				{ __( 'Loading…', 'blocksmith' ) }
+				{ __( 'Loading…', 'invocation' ) }
 			</Flex>
 		);
 	}
@@ -107,17 +107,17 @@ function SiteBriefApp() {
 		<div style={ { maxWidth: '760px' } }>
 			<Flex justify="space-between" align="center" style={ { margin: '16px 0' } }>
 				<FlexItem>
-					<Heading level={ 1 }>{ __( 'Blocksmith — Site Brief', 'blocksmith' ) }</Heading>
+					<Heading level={ 1 }>{ __( 'Invocation — Site Brief', 'invocation' ) }</Heading>
 				</FlexItem>
 				<FlexItem>
 					<Button variant="secondary" onClick={ generate } disabled={ isGenerating || isSaving }>
 						{ isGenerating ? (
 							<Flex gap={ 2 } justify="center">
 								<Spinner />
-								{ __( 'Analyzing…', 'blocksmith' ) }
+								{ __( 'Analyzing…', 'invocation' ) }
 							</Flex>
 						) : (
-							__( 'Generate from my site', 'blocksmith' )
+							__( 'Generate from my site', 'invocation' )
 						) }
 					</Button>
 				</FlexItem>
@@ -125,8 +125,8 @@ function SiteBriefApp() {
 
 			<p>
 				{ __(
-					'The Site Brief grounds every Blocksmith generation in your site’s purpose, audience and voice. Generate it from your content, then edit anything.',
-					'blocksmith'
+					'The Site Brief grounds every Invocation generation in your site’s purpose, audience and voice. Generate it from your content, then edit anything.',
+					'invocation'
 				) }
 			</p>
 
@@ -138,27 +138,27 @@ function SiteBriefApp() {
 
 			<Card>
 				<CardHeader>
-					<Heading level={ 3 }>{ __( 'Brand', 'blocksmith' ) }</Heading>
+					<Heading level={ 3 }>{ __( 'Brand', 'invocation' ) }</Heading>
 				</CardHeader>
 				<CardBody>
 					<TextareaControl
 						__nextHasNoMarginBottom
-						label={ __( 'Purpose', 'blocksmith' ) }
-						help={ __( 'What this site is for.', 'blocksmith' ) }
+						label={ __( 'Purpose', 'invocation' ) }
+						help={ __( 'What this site is for.', 'invocation' ) }
 						value={ brief.purpose }
 						onChange={ ( v ) => update( 'purpose', v ) }
 						rows={ 2 }
 					/>
 					<TextareaControl
 						__nextHasNoMarginBottom
-						label={ __( 'Audience', 'blocksmith' ) }
+						label={ __( 'Audience', 'invocation' ) }
 						value={ brief.audience }
 						onChange={ ( v ) => update( 'audience', v ) }
 						rows={ 2 }
 					/>
 					<TextareaControl
 						__nextHasNoMarginBottom
-						label={ __( 'Voice & tone', 'blocksmith' ) }
+						label={ __( 'Voice & tone', 'invocation' ) }
 						value={ brief.toneVoice }
 						onChange={ ( v ) => update( 'toneVoice', v ) }
 						rows={ 2 }
@@ -168,24 +168,24 @@ function SiteBriefApp() {
 
 			<Card style={ { marginTop: '16px' } }>
 				<CardHeader>
-					<Heading level={ 3 }>{ __( 'Content guidance', 'blocksmith' ) }</Heading>
+					<Heading level={ 3 }>{ __( 'Content guidance', 'invocation' ) }</Heading>
 				</CardHeader>
 				<CardBody>
 					<FormTokenField
 						__nextHasNoMarginBottom
-						label={ __( 'Offerings (products, services, topics)', 'blocksmith' ) }
+						label={ __( 'Offerings (products, services, topics)', 'invocation' ) }
 						value={ brief.offerings }
 						onChange={ ( v ) => update( 'offerings', v ) }
 					/>
 					<FormTokenField
 						__nextHasNoMarginBottom
-						label={ __( 'Preferred terms', 'blocksmith' ) }
+						label={ __( 'Preferred terms', 'invocation' ) }
 						value={ brief.keyTerms }
 						onChange={ ( v ) => update( 'keyTerms', v ) }
 					/>
 					<FormTokenField
 						__nextHasNoMarginBottom
-						label={ __( 'Avoid', 'blocksmith' ) }
+						label={ __( 'Avoid', 'invocation' ) }
 						value={ brief.avoid }
 						onChange={ ( v ) => update( 'avoid', v ) }
 					/>
@@ -194,20 +194,20 @@ function SiteBriefApp() {
 
 			<Flex justify="flex-start" style={ { marginTop: '16px' } }>
 				<Button variant="primary" onClick={ save } disabled={ isSaving || isGenerating }>
-					{ isSaving ? __( 'Saving…', 'blocksmith' ) : __( 'Save changes', 'blocksmith' ) }
+					{ isSaving ? __( 'Saving…', 'invocation' ) : __( 'Save changes', 'invocation' ) }
 				</Button>
 			</Flex>
 
 			{ brief.generatedAt && (
 				<p style={ { color: '#757575', marginTop: '12px' } }>
-					{ __( 'Last generated:', 'blocksmith' ) } { brief.generatedAt }
+					{ __( 'Last generated:', 'invocation' ) } { brief.generatedAt }
 				</p>
 			) }
 		</div>
 	);
 }
 
-const root = document.getElementById( 'blocksmith-admin-root' );
+const root = document.getElementById( 'invocation-admin-root' );
 if ( root ) {
 	createRoot( root ).render( <SiteBriefApp /> );
 }

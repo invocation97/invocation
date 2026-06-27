@@ -1,13 +1,13 @@
 <?php
 /**
- * The blocksmith/refine-block ability.
+ * The invocation/refine-block ability.
  *
  * Takes existing Gutenberg block markup plus a natural-language instruction and
  * returns a revised version. Shares all grounding/validation with generate-layout
  * via inc/context.php, so it stays on-theme, uses real media and internal links,
  * and repairs any guessed links.
  *
- * @package Blocksmith
+ * @package Invocation
  */
 
 declare( strict_types=1 );
@@ -20,11 +20,11 @@ add_action(
 	'wp_abilities_api_init',
 	static function (): void {
 		wp_register_ability(
-			'blocksmith/refine-block',
+			'invocation/refine-block',
 			array(
-				'label'               => __( 'Refine Block', 'blocksmith' ),
-				'description'         => __( 'Refines existing Gutenberg block markup according to a natural-language instruction, staying on-theme and using only registered blocks, real media, and real internal links. Returns the revised block markup.', 'blocksmith' ),
-				'category'            => BLOCKSMITH_ABILITY_CATEGORY,
+				'label'               => __( 'Refine Block', 'invocation' ),
+				'description'         => __( 'Refines existing Gutenberg block markup according to a natural-language instruction, staying on-theme and using only registered blocks, real media, and real internal links. Returns the revised block markup.', 'invocation' ),
+				'category'            => INVOCATION_ABILITY_CATEGORY,
 				'input_schema'        => array(
 					'type'                 => 'object',
 					'properties'           => array(
@@ -79,8 +79,8 @@ add_action(
 						),
 					),
 				),
-				'execute_callback'    => 'blocksmith_ability_refine_block',
-				'permission_callback' => static fn (): bool => current_user_can( blocksmith_generation_capability() ),
+				'execute_callback'    => 'invocation_ability_refine_block',
+				'permission_callback' => static fn (): bool => current_user_can( invocation_generation_capability() ),
 				'meta'                => array(
 					'show_in_rest' => true,
 					'annotations'  => array(
@@ -95,27 +95,27 @@ add_action(
 );
 
 /**
- * Execute callback for blocksmith/refine-block.
+ * Execute callback for invocation/refine-block.
  *
  * @param array<string, mixed> $input Validated input.
  * @return array<string, mixed>|WP_Error Revised markup or an error.
  */
-function blocksmith_ability_refine_block( array $input = array() ) {
+function invocation_ability_refine_block( array $input = array() ) {
 	$markup      = trim( (string) ( $input['blockMarkup'] ?? '' ) );
 	$instruction = trim( (string) ( $input['instruction'] ?? '' ) );
 
 	if ( '' === $markup ) {
-		return new WP_Error( 'blocksmith_missing_markup', __( 'Block markup is required.', 'blocksmith' ) );
+		return new WP_Error( 'invocation_missing_markup', __( 'Block markup is required.', 'invocation' ) );
 	}
 	if ( '' === $instruction ) {
-		return new WP_Error( 'blocksmith_missing_instruction', __( 'An instruction is required.', 'blocksmith' ) );
+		return new WP_Error( 'invocation_missing_instruction', __( 'An instruction is required.', 'invocation' ) );
 	}
 	if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
-		return new WP_Error( 'blocksmith_no_ai_client', __( 'The WordPress AI Client is not available.', 'blocksmith' ) );
+		return new WP_Error( 'invocation_no_ai_client', __( 'The WordPress AI Client is not available.', 'invocation' ) );
 	}
 
-	$ctx         = blocksmith_gather_context( $instruction, $input );
-	$system      = blocksmith_build_refine_system_instruction( $ctx, $input );
+	$ctx         = invocation_gather_context( $instruction, $input );
+	$system      = invocation_build_refine_system_instruction( $ctx, $input );
 	$user_prompt = "Instruction:\n" . $instruction
 		. "\n\nRefine the following Gutenberg block markup accordingly and return the COMPLETE revised markup.\n\n---\n"
 		. $markup
@@ -137,7 +137,7 @@ function blocksmith_ability_refine_block( array $input = array() ) {
 		'additionalProperties' => false,
 	);
 
-	$response = blocksmith_generate_text( $user_prompt, $system, $json_schema );
+	$response = invocation_generate_text( $user_prompt, $system, $json_schema );
 
 	if ( is_wp_error( $response ) ) {
 		return $response;
@@ -145,10 +145,10 @@ function blocksmith_ability_refine_block( array $input = array() ) {
 
 	$data = json_decode( (string) $response, true );
 	if ( ! is_array( $data ) || empty( $data['blockMarkup'] ) ) {
-		return new WP_Error( 'blocksmith_invalid_response', __( 'The AI response did not contain usable block markup.', 'blocksmith' ) );
+		return new WP_Error( 'invocation_invalid_response', __( 'The AI response did not contain usable block markup.', 'invocation' ) );
 	}
 
-	$final = blocksmith_finalize_markup( (string) $data['blockMarkup'], $ctx );
+	$final = invocation_finalize_markup( (string) $data['blockMarkup'], $ctx );
 	if ( is_wp_error( $final ) ) {
 		return $final;
 	}
@@ -165,11 +165,11 @@ function blocksmith_ability_refine_block( array $input = array() ) {
  *
  * Task-specific framing on top of the shared grounding context.
  *
- * @param array<string, mixed> $ctx   Output of blocksmith_gather_context().
+ * @param array<string, mixed> $ctx   Output of invocation_gather_context().
  * @param array<string, mixed> $input Ability input.
  * @return string
  */
-function blocksmith_build_refine_system_instruction( array $ctx, array $input ): string {
+function invocation_build_refine_system_instruction( array $ctx, array $input ): string {
 	$tone = (string) ( $input['tone'] ?? 'professional' );
 
 	$lines = array(
@@ -183,7 +183,7 @@ function blocksmith_build_refine_system_instruction( array $ctx, array $input ):
 		'',
 	);
 
-	$lines = array_merge( $lines, blocksmith_context_grounding_lines( $ctx ) );
+	$lines = array_merge( $lines, invocation_context_grounding_lines( $ctx ) );
 
 	$lines[] = '';
 	$lines[] = 'Writing tone: ' . $tone . '.';

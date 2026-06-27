@@ -53,7 +53,7 @@
 
   <!-- wordmark -->
   <text x="210" y="120" font-family="'Helvetica Neue',Arial,sans-serif" font-size="64" font-weight="800" letter-spacing="-1">
-    <tspan fill="#F4F6FA">Block</tspan><tspan fill="url(#hot)">smith</tspan>
+    <tspan fill="#F4F6FA">Invo</tspan><tspan fill="url(#hot)">cation</tspan>
   </text>
   <text x="212" y="158" font-family="'Helvetica Neue',Arial,sans-serif" font-size="23" font-weight="400" fill="#9AA2B1">Forge on-theme pages, block by block.</text>
 </svg>

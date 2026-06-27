@@ -1,7 +1,7 @@
 /**
- * Blocksmith editor sidebar.
+ * Invocation editor sidebar.
  *
- * A PluginSidebar that calls the blocksmith/generate-layout ability over the
+ * A PluginSidebar that calls the invocation/generate-layout ability over the
  * Abilities REST endpoint and inserts the returned blocks into the editor.
  * Supports generation scopes: a single section, a full page, or filling a
  * chosen section pattern with content. All intelligence lives server-side.
@@ -29,25 +29,25 @@ import { addQueryArgs } from '@wordpress/url';
 import { __ } from '@wordpress/i18n';
 
 import './refine';
-import { BLOCKSMITH_ICON } from './constants';
+import { INVOCATION_ICON } from './constants';
 
-const SIDEBAR_NAME = 'blocksmith-sidebar';
+const SIDEBAR_NAME = 'invocation-sidebar';
 
 const TONE_OPTIONS = [
-	{ label: __( 'Professional', 'blocksmith' ), value: 'professional' },
-	{ label: __( 'Casual', 'blocksmith' ), value: 'casual' },
-	{ label: __( 'Creative', 'blocksmith' ), value: 'creative' },
-	{ label: __( 'Minimal', 'blocksmith' ), value: 'minimal' },
-	{ label: __( 'Bold', 'blocksmith' ), value: 'bold' },
+	{ label: __( 'Professional', 'invocation' ), value: 'professional' },
+	{ label: __( 'Casual', 'invocation' ), value: 'casual' },
+	{ label: __( 'Creative', 'invocation' ), value: 'creative' },
+	{ label: __( 'Minimal', 'invocation' ), value: 'minimal' },
+	{ label: __( 'Bold', 'invocation' ), value: 'bold' },
 ];
 
 const SCOPE_OPTIONS = [
-	{ label: __( 'Section', 'blocksmith' ), value: 'section' },
-	{ label: __( 'Full page', 'blocksmith' ), value: 'full-page' },
-	{ label: __( 'Fill a pattern', 'blocksmith' ), value: 'fill-from-pattern' },
+	{ label: __( 'Section', 'invocation' ), value: 'section' },
+	{ label: __( 'Full page', 'invocation' ), value: 'full-page' },
+	{ label: __( 'Fill a pattern', 'invocation' ), value: 'fill-from-pattern' },
 ];
 
-function BlocksmithSidebar() {
+function InvocationSidebar() {
 	const [ prompt, setPrompt ] = useState( '' );
 	const [ tone, setTone ] = useState( 'professional' );
 	const [ scope, setScope ] = useState( 'section' );
@@ -73,7 +73,7 @@ function BlocksmithSidebar() {
 			// a JSON string.
 			const result = await apiFetch( {
 				path: addQueryArgs(
-					'/wp-abilities/v1/abilities/blocksmith/list-patterns/run',
+					'/wp-abilities/v1/abilities/invocation/list-patterns/run',
 					{ input: { limit: 100 } }
 				),
 			} );
@@ -87,7 +87,7 @@ function BlocksmithSidebar() {
 		} catch ( error ) {
 			setNotice( {
 				status: 'error',
-				message: error?.message || __( 'Could not load patterns.', 'blocksmith' ),
+				message: error?.message || __( 'Could not load patterns.', 'invocation' ),
 			} );
 		}
 	};
@@ -106,14 +106,14 @@ function BlocksmithSidebar() {
 		if ( ! trimmed ) {
 			setNotice( {
 				status: 'warning',
-				message: __( 'Describe what you want first.', 'blocksmith' ),
+				message: __( 'Describe what you want first.', 'invocation' ),
 			} );
 			return;
 		}
 		if ( isFill && ! patternName ) {
 			setNotice( {
 				status: 'warning',
-				message: __( 'Choose a pattern to fill.', 'blocksmith' ),
+				message: __( 'Choose a pattern to fill.', 'invocation' ),
 			} );
 			return;
 		}
@@ -131,25 +131,25 @@ function BlocksmithSidebar() {
 			};
 
 			const result = await apiFetch( {
-				path: '/wp-abilities/v1/abilities/blocksmith/generate-layout/run',
+				path: '/wp-abilities/v1/abilities/invocation/generate-layout/run',
 				method: 'POST',
 				data: { input },
 			} );
 
 			if ( ! result?.blockMarkup ) {
-				throw new Error( __( 'No layout was returned.', 'blocksmith' ) );
+				throw new Error( __( 'No layout was returned.', 'invocation' ) );
 			}
 
 			const blocks = parse( result.blockMarkup );
 			if ( ! blocks.length ) {
-				throw new Error( __( 'The generated layout could not be parsed.', 'blocksmith' ) );
+				throw new Error( __( 'The generated layout could not be parsed.', 'invocation' ) );
 			}
 
 			insertBlocks( blocks );
 
 			const warning = result.warnings?.length
 				? ' ' +
-				  __( 'Unrecognized blocks were skipped:', 'blocksmith' ) +
+				  __( 'Unrecognized blocks were skipped:', 'invocation' ) +
 				  ' ' +
 				  result.warnings.join( ', ' )
 				: '';
@@ -157,14 +157,14 @@ function BlocksmithSidebar() {
 			setNotice( {
 				status: 'success',
 				message:
-					( result.summary || __( 'Layout inserted.', 'blocksmith' ) ) + warning,
+					( result.summary || __( 'Layout inserted.', 'invocation' ) ) + warning,
 			} );
 			setPrompt( '' );
 		} catch ( error ) {
 			setNotice( {
 				status: 'error',
 				message:
-					error?.message || __( 'Generation failed. Check your AI Connector.', 'blocksmith' ),
+					error?.message || __( 'Generation failed. Check your AI Connector.', 'invocation' ),
 			} );
 		} finally {
 			setIsLoading( false );
@@ -173,25 +173,25 @@ function BlocksmithSidebar() {
 
 	return (
 		<>
-			<PluginSidebarMoreMenuItem target={ SIDEBAR_NAME } icon={ BLOCKSMITH_ICON }>
-				{ __( 'Blocksmith', 'blocksmith' ) }
+			<PluginSidebarMoreMenuItem target={ SIDEBAR_NAME } icon={ INVOCATION_ICON }>
+				{ __( 'Invocation', 'invocation' ) }
 			</PluginSidebarMoreMenuItem>
 			<PluginSidebar
 				name={ SIDEBAR_NAME }
-				icon={ BLOCKSMITH_ICON }
-				title={ __( 'Blocksmith', 'blocksmith' ) }
+				icon={ INVOCATION_ICON }
+				title={ __( 'Invocation', 'invocation' ) }
 			>
 				<PanelBody>
 					<p>
 						{ __(
-							'Describe what you want and Blocksmith will build it with your theme’s blocks, patterns, and styles.',
-							'blocksmith'
+							'Describe what you want and Invocation will build it with your theme’s blocks, patterns, and styles.',
+							'invocation'
 						) }
 					</p>
 
 					<SelectControl
 						__nextHasNoMarginBottom
-						label={ __( 'Scope', 'blocksmith' ) }
+						label={ __( 'Scope', 'invocation' ) }
 						value={ scope }
 						options={ SCOPE_OPTIONS }
 						onChange={ onScopeChange }
@@ -201,11 +201,11 @@ function BlocksmithSidebar() {
 					{ isFill && (
 						<ComboboxControl
 							__nextHasNoMarginBottom
-							label={ __( 'Pattern to fill', 'blocksmith' ) }
+							label={ __( 'Pattern to fill', 'invocation' ) }
 							value={ patternName }
 							options={ patterns }
 							onChange={ ( value ) => setPatternName( value || '' ) }
-							placeholder={ __( 'Search patterns…', 'blocksmith' ) }
+							placeholder={ __( 'Search patterns…', 'invocation' ) }
 						/>
 					) }
 
@@ -213,13 +213,13 @@ function BlocksmithSidebar() {
 						__nextHasNoMarginBottom
 						label={
 							isFill
-								? __( 'Content to put into the pattern', 'blocksmith' )
-								: __( 'What should we build?', 'blocksmith' )
+								? __( 'Content to put into the pattern', 'invocation' )
+								: __( 'What should we build?', 'invocation' )
 						}
 						placeholder={
 							isFill
-								? __( 'e.g. Promote a free 14-day trial of our app.', 'blocksmith' )
-								: __( 'e.g. A hero with a heading and CTA button, then a three-column features section.', 'blocksmith' )
+								? __( 'e.g. Promote a free 14-day trial of our app.', 'invocation' )
+								: __( 'e.g. A hero with a heading and CTA button, then a three-column features section.', 'invocation' )
 						}
 						value={ prompt }
 						onChange={ setPrompt }
@@ -229,7 +229,7 @@ function BlocksmithSidebar() {
 
 					<SelectControl
 						__nextHasNoMarginBottom
-						label={ __( 'Tone', 'blocksmith' ) }
+						label={ __( 'Tone', 'invocation' ) }
 						value={ tone }
 						options={ TONE_OPTIONS }
 						onChange={ setTone }
@@ -245,10 +245,10 @@ function BlocksmithSidebar() {
 						{ isLoading ? (
 							<Flex justify="center" gap={ 2 }>
 								<Spinner />
-								{ __( 'Generating…', 'blocksmith' ) }
+								{ __( 'Generating…', 'invocation' ) }
 							</Flex>
 						) : (
-							__( 'Generate', 'blocksmith' )
+							__( 'Generate', 'invocation' )
 						) }
 					</Button>
 
@@ -267,4 +267,4 @@ function BlocksmithSidebar() {
 	);
 }
 
-registerPlugin( 'blocksmith', { render: BlocksmithSidebar } );
+registerPlugin( 'invocation', { render: InvocationSidebar } );

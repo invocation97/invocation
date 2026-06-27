@@ -1,13 +1,13 @@
 <?php
 /**
- * The blocksmith/search-internal-links ability.
+ * The invocation/search-internal-links ability.
  *
  * Returns real internal URLs (pages, posts, custom post types, and taxonomy
  * terms) so the AI links to actual site content instead of hallucinating
  * internal links. Like search-media, this is offered to generate-layout as an
  * injected catalogue rather than a live tool call.
  *
- * @package Blocksmith
+ * @package Invocation
  */
 
 declare( strict_types=1 );
@@ -20,11 +20,11 @@ add_action(
 	'wp_abilities_api_init',
 	static function (): void {
 		wp_register_ability(
-			'blocksmith/search-internal-links',
+			'invocation/search-internal-links',
 			array(
-				'label'               => __( 'Search Internal Links', 'blocksmith' ),
-				'description'         => __( 'Searches the site for real internal URLs (pages, posts, custom post types, and taxonomy terms like categories) so links point to existing content instead of invented URLs.', 'blocksmith' ),
-				'category'            => BLOCKSMITH_ABILITY_CATEGORY,
+				'label'               => __( 'Search Internal Links', 'invocation' ),
+				'description'         => __( 'Searches the site for real internal URLs (pages, posts, custom post types, and taxonomy terms like categories) so links point to existing content instead of invented URLs.', 'invocation' ),
+				'category'            => INVOCATION_ABILITY_CATEGORY,
 				'input_schema'        => array(
 					'type'                 => 'object',
 					'properties'           => array(
@@ -65,7 +65,7 @@ add_action(
 						'total' => array( 'type' => 'integer' ),
 					),
 				),
-				'execute_callback'    => 'blocksmith_ability_search_internal_links',
+				'execute_callback'    => 'invocation_ability_search_internal_links',
 				'permission_callback' => static fn (): bool => current_user_can( 'edit_posts' ),
 				'meta'                => array(
 					'show_in_rest' => true,
@@ -80,12 +80,12 @@ add_action(
 );
 
 /**
- * Execute callback for blocksmith/search-internal-links.
+ * Execute callback for invocation/search-internal-links.
  *
  * @param array<string, mixed> $input Validated input.
  * @return array<string, mixed> Matching internal links.
  */
-function blocksmith_ability_search_internal_links( array $input = array() ): array {
+function invocation_ability_search_internal_links( array $input = array() ): array {
 	$query = trim( (string) ( $input['query'] ?? '' ) );
 	$limit = max( 1, min( 50, (int) ( $input['limit'] ?? 20 ) ) );
 	$types = $input['types'] ?? array();
@@ -164,10 +164,10 @@ function blocksmith_ability_search_internal_links( array $input = array() ): arr
  * external links, anchors, mailto/tel, and already-valid URLs untouched.
  *
  * @param string                           $markup Serialized block markup.
- * @param array<int, array<string, mixed>> $links  Catalogue from blocksmith_ability_search_internal_links().
+ * @param array<int, array<string, mixed>> $links  Catalogue from invocation_ability_search_internal_links().
  * @return array{0: string, 1: list<string>} The repaired markup and the list of original hrefs that were rewritten.
  */
-function blocksmith_repair_internal_links( string $markup, array $links ): array {
+function invocation_repair_internal_links( string $markup, array $links ): array {
 	if ( empty( $links ) ) {
 		return array( $markup, array() );
 	}

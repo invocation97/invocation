@@ -1,9 +1,9 @@
 /**
- * Blocksmith "Refine with AI" block toolbar action.
+ * Invocation "Refine with AI" block toolbar action.
  *
  * Adds a toolbar button to every selected block that lets the user describe a
  * change in natural language; the selected block(s) are serialized, sent to the
- * blocksmith/refine-block ability, and replaced in place with the result.
+ * invocation/refine-block ability, and replaced in place with the result.
  */
 
 import { addFilter } from '@wordpress/hooks';
@@ -25,7 +25,7 @@ import { serialize, parse } from '@wordpress/blocks';
 import apiFetch from '@wordpress/api-fetch';
 import { __ } from '@wordpress/i18n';
 
-import { BLOCKSMITH_ICON } from './constants';
+import { INVOCATION_ICON } from './constants';
 
 function RefineControl( { clientId } ) {
 	const [ isOpen, setIsOpen ] = useState( false );
@@ -59,7 +59,7 @@ function RefineControl( { clientId } ) {
 
 		try {
 			const result = await apiFetch( {
-				path: '/wp-abilities/v1/abilities/blocksmith/refine-block/run',
+				path: '/wp-abilities/v1/abilities/invocation/refine-block/run',
 				method: 'POST',
 				data: {
 					input: {
@@ -70,19 +70,19 @@ function RefineControl( { clientId } ) {
 			} );
 
 			if ( ! result?.blockMarkup ) {
-				throw new Error( __( 'No refined content was returned.', 'blocksmith' ) );
+				throw new Error( __( 'No refined content was returned.', 'invocation' ) );
 			}
 
 			const blocks = parse( result.blockMarkup );
 			if ( ! blocks.length ) {
-				throw new Error( __( 'The refined content could not be parsed.', 'blocksmith' ) );
+				throw new Error( __( 'The refined content could not be parsed.', 'invocation' ) );
 			}
 
 			replaceBlocks( clientId, blocks );
 			setIsOpen( false );
 			setInstruction( '' );
 		} catch ( err ) {
-			setError( err?.message || __( 'Refine failed. Check your AI Connector.', 'blocksmith' ) );
+			setError( err?.message || __( 'Refine failed. Check your AI Connector.', 'invocation' ) );
 		} finally {
 			setIsLoading( false );
 		}
@@ -93,8 +93,8 @@ function RefineControl( { clientId } ) {
 			<BlockControls>
 				<ToolbarGroup>
 					<ToolbarButton
-						icon={ BLOCKSMITH_ICON }
-						label={ __( 'Refine with Blocksmith', 'blocksmith' ) }
+						icon={ INVOCATION_ICON }
+						label={ __( 'Refine with Invocation', 'invocation' ) }
 						onClick={ () => setIsOpen( true ) }
 					/>
 				</ToolbarGroup>
@@ -102,16 +102,16 @@ function RefineControl( { clientId } ) {
 
 			{ isOpen && (
 				<Modal
-					title={ __( 'Refine with Blocksmith', 'blocksmith' ) }
+					title={ __( 'Refine with Invocation', 'invocation' ) }
 					onRequestClose={ close }
 					style={ { maxWidth: '480px' } }
 				>
 					<TextareaControl
 						__nextHasNoMarginBottom
-						label={ __( 'How should this block change?', 'blocksmith' ) }
+						label={ __( 'How should this block change?', 'invocation' ) }
 						placeholder={ __(
 							'e.g. Make the heading punchier and add a short subheading.',
-							'blocksmith'
+							'invocation'
 						) }
 						value={ instruction }
 						onChange={ setInstruction }
@@ -127,7 +127,7 @@ function RefineControl( { clientId } ) {
 
 					<Flex justify="flex-end" gap={ 2 } style={ { marginTop: '16px' } }>
 						<Button variant="tertiary" onClick={ close } disabled={ isLoading }>
-							{ __( 'Cancel', 'blocksmith' ) }
+							{ __( 'Cancel', 'invocation' ) }
 						</Button>
 						<Button
 							variant="primary"
@@ -137,10 +137,10 @@ function RefineControl( { clientId } ) {
 							{ isLoading ? (
 								<Flex justify="center" gap={ 2 }>
 									<Spinner />
-									{ __( 'Refining…', 'blocksmith' ) }
+									{ __( 'Refining…', 'invocation' ) }
 								</Flex>
 							) : (
-								__( 'Refine', 'blocksmith' )
+								__( 'Refine', 'invocation' )
 							) }
 						</Button>
 					</Flex>
@@ -150,7 +150,7 @@ function RefineControl( { clientId } ) {
 	);
 }
 
-const withBlocksmithRefine = createHigherOrderComponent( ( BlockEdit ) => {
+const withInvocationRefine = createHigherOrderComponent( ( BlockEdit ) => {
 	return ( props ) => {
 		if ( ! props.isSelected ) {
 			return <BlockEdit { ...props } />;
@@ -162,6 +162,6 @@ const withBlocksmithRefine = createHigherOrderComponent( ( BlockEdit ) => {
 			</>
 		);
 	};
-}, 'withBlocksmithRefine' );
+}, 'withInvocationRefine' );
 
-addFilter( 'editor.BlockEdit', 'blocksmith/refine-toolbar', withBlocksmithRefine );
+addFilter( 'editor.BlockEdit', 'invocation/refine-toolbar', withInvocationRefine );

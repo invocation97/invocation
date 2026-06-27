@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "blocksmith": {
+    "invocation": {
       "command": "npx",
       "args": ["-y", "@automattic/mcp-wordpress-remote@latest"],
       "env": {

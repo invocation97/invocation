@@ -6,7 +6,7 @@
  * end-to-end. They default to creating drafts and never publish unless the
  * acting user actually has the capability, so automation stays safe-by-default.
  *
- * @package Blocksmith
+ * @package Invocation
  */
 
 declare( strict_types=1 );
@@ -15,17 +15,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const BLOCKSMITH_PAGE_STATUSES = array( 'draft', 'pending', 'publish', 'private' );
+const INVOCATION_PAGE_STATUSES = array( 'draft', 'pending', 'publish', 'private' );
 
 add_action(
 	'wp_abilities_api_init',
 	static function (): void {
 		wp_register_ability(
-			'blocksmith/create-page',
+			'invocation/create-page',
 			array(
-				'label'               => __( 'Create Page', 'blocksmith' ),
-				'description'         => __( 'Creates a new page (or post) from a title and Gutenberg block markup. Creates a draft by default; only publishes if the current user can publish. Returns the new post id and edit URL.', 'blocksmith' ),
-				'category'            => BLOCKSMITH_ABILITY_CATEGORY,
+				'label'               => __( 'Create Page', 'invocation' ),
+				'description'         => __( 'Creates a new page (or post) from a title and Gutenberg block markup. Creates a draft by default; only publishes if the current user can publish. Returns the new post id and edit URL.', 'invocation' ),
+				'category'            => INVOCATION_ABILITY_CATEGORY,
 				'input_schema'        => array(
 					'type'                 => 'object',
 					'properties'           => array(
@@ -41,7 +41,7 @@ add_action(
 						'status'   => array(
 							'type'        => 'string',
 							'description' => 'Post status. Defaults to draft; downgraded to draft if the user cannot publish.',
-							'enum'        => BLOCKSMITH_PAGE_STATUSES,
+							'enum'        => INVOCATION_PAGE_STATUSES,
 							'default'     => 'draft',
 						),
 						'postType' => array(
@@ -53,8 +53,8 @@ add_action(
 					'required'             => array( 'title' ),
 					'additionalProperties' => false,
 				),
-				'output_schema'       => blocksmith_page_output_schema(),
-				'execute_callback'    => 'blocksmith_ability_create_page',
+				'output_schema'       => invocation_page_output_schema(),
+				'execute_callback'    => 'invocation_ability_create_page',
 				'permission_callback' => static function ( array $input = array() ): bool {
 					$type = get_post_type_object( (string) ( $input['postType'] ?? 'page' ) );
 					return $type ? current_user_can( $type->cap->create_posts ?? $type->cap->edit_posts ) : false;
@@ -71,11 +71,11 @@ add_action(
 		);
 
 		wp_register_ability(
-			'blocksmith/update-page',
+			'invocation/update-page',
 			array(
-				'label'               => __( 'Update Page', 'blocksmith' ),
-				'description'         => __( 'Updates an existing page or post (title, content, and/or status) by id. Overwrites the given fields. Returns the post id and edit URL.', 'blocksmith' ),
-				'category'            => BLOCKSMITH_ABILITY_CATEGORY,
+				'label'               => __( 'Update Page', 'invocation' ),
+				'description'         => __( 'Updates an existing page or post (title, content, and/or status) by id. Overwrites the given fields. Returns the post id and edit URL.', 'invocation' ),
+				'category'            => INVOCATION_ABILITY_CATEGORY,
 				'input_schema'        => array(
 					'type'                 => 'object',
 					'properties'           => array(
@@ -94,14 +94,14 @@ add_action(
 						'status'  => array(
 							'type'        => 'string',
 							'description' => 'New status (omit to leave unchanged). Status change to publish/private is ignored if the user cannot publish.',
-							'enum'        => BLOCKSMITH_PAGE_STATUSES,
+							'enum'        => INVOCATION_PAGE_STATUSES,
 						),
 					),
 					'required'             => array( 'id' ),
 					'additionalProperties' => false,
 				),
-				'output_schema'       => blocksmith_page_output_schema(),
-				'execute_callback'    => 'blocksmith_ability_update_page',
+				'output_schema'       => invocation_page_output_schema(),
+				'execute_callback'    => 'invocation_ability_update_page',
 				'permission_callback' => static function ( array $input = array() ): bool {
 					$id = (int) ( $input['id'] ?? 0 );
 					return $id > 0 && current_user_can( 'edit_post', $id );
@@ -124,7 +124,7 @@ add_action(
  *
  * @return array<string, mixed>
  */
-function blocksmith_page_output_schema(): array {
+function invocation_page_output_schema(): array {
 	return array(
 		'type'       => 'object',
 		'properties' => array(
@@ -143,7 +143,7 @@ function blocksmith_page_output_schema(): array {
  * @param int $id Post id.
  * @return array<string, mixed>
  */
-function blocksmith_page_response( int $id ): array {
+function invocation_page_response( int $id ): array {
 	return array(
 		'id'      => $id,
 		'title'   => (string) get_the_title( $id ),
@@ -154,27 +154,27 @@ function blocksmith_page_response( int $id ): array {
 }
 
 /**
- * Execute callback for blocksmith/create-page.
+ * Execute callback for invocation/create-page.
  *
  * @param array<string, mixed> $input Validated input.
  * @return array<string, mixed>|WP_Error
  */
-function blocksmith_ability_create_page( array $input = array() ) {
+function invocation_ability_create_page( array $input = array() ) {
 	$title     = trim( (string) ( $input['title'] ?? '' ) );
 	$content   = (string) ( $input['content'] ?? '' );
 	$status    = (string) ( $input['status'] ?? 'draft' );
 	$post_type = (string) ( $input['postType'] ?? 'page' );
 
 	if ( '' === $title ) {
-		return new WP_Error( 'blocksmith_missing_title', __( 'A title is required.', 'blocksmith' ) );
+		return new WP_Error( 'invocation_missing_title', __( 'A title is required.', 'invocation' ) );
 	}
 
 	$type = get_post_type_object( $post_type );
 	if ( ! $type ) {
-		return new WP_Error( 'blocksmith_invalid_post_type', __( 'Unknown post type.', 'blocksmith' ) );
+		return new WP_Error( 'invocation_invalid_post_type', __( 'Unknown post type.', 'invocation' ) );
 	}
 
-	if ( ! in_array( $status, BLOCKSMITH_PAGE_STATUSES, true ) ) {
+	if ( ! in_array( $status, INVOCATION_PAGE_STATUSES, true ) ) {
 		$status = 'draft';
 	}
 	// Never publish on behalf of a user who lacks the capability.
@@ -196,20 +196,20 @@ function blocksmith_ability_create_page( array $input = array() ) {
 		return $id;
 	}
 
-	return blocksmith_page_response( (int) $id );
+	return invocation_page_response( (int) $id );
 }
 
 /**
- * Execute callback for blocksmith/update-page.
+ * Execute callback for invocation/update-page.
  *
  * @param array<string, mixed> $input Validated input.
  * @return array<string, mixed>|WP_Error
  */
-function blocksmith_ability_update_page( array $input = array() ) {
+function invocation_ability_update_page( array $input = array() ) {
 	$id   = (int) ( $input['id'] ?? 0 );
 	$post = $id ? get_post( $id ) : null;
 	if ( ! $post ) {
-		return new WP_Error( 'blocksmith_not_found', __( 'Post not found.', 'blocksmith' ) );
+		return new WP_Error( 'invocation_not_found', __( 'Post not found.', 'invocation' ) );
 	}
 
 	$data = array( 'ID' => $id );
@@ -219,7 +219,7 @@ function blocksmith_ability_update_page( array $input = array() ) {
 	if ( array_key_exists( 'content', $input ) ) {
 		$data['post_content'] = (string) $input['content'];
 	}
-	if ( array_key_exists( 'status', $input ) && in_array( (string) $input['status'], BLOCKSMITH_PAGE_STATUSES, true ) ) {
+	if ( array_key_exists( 'status', $input ) && in_array( (string) $input['status'], INVOCATION_PAGE_STATUSES, true ) ) {
 		$status = (string) $input['status'];
 		$type   = get_post_type_object( $post->post_type );
 		$blocked = in_array( $status, array( 'publish', 'private' ), true ) && $type && ! current_user_can( $type->cap->publish_posts );
@@ -229,7 +229,7 @@ function blocksmith_ability_update_page( array $input = array() ) {
 	}
 
 	if ( count( $data ) === 1 ) {
-		return new WP_Error( 'blocksmith_nothing_to_update', __( 'Provide a title, content, or status to update.', 'blocksmith' ) );
+		return new WP_Error( 'invocation_nothing_to_update', __( 'Provide a title, content, or status to update.', 'invocation' ) );
 	}
 
 	$result = wp_update_post( $data, true );
@@ -237,5 +237,5 @@ function blocksmith_ability_update_page( array $input = array() ) {
 		return $result;
 	}
 
-	return blocksmith_page_response( $id );
+	return invocation_page_response( $id );
 }

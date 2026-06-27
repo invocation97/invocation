@@ -1,13 +1,13 @@
 <?php
 /**
- * The blocksmith/list-patterns ability + pattern context helper.
+ * The invocation/list-patterns ability + pattern context helper.
  *
  * Patterns are designed, reusable *sections* — the unit most authors actually
  * think in. Surfacing the site's registered patterns (theme + core + custom)
  * lets the AI compose from real sections and learn which (often custom) blocks
  * each section uses.
  *
- * @package Blocksmith
+ * @package Invocation
  */
 
 declare( strict_types=1 );
@@ -20,11 +20,11 @@ add_action(
 	'wp_abilities_api_init',
 	static function (): void {
 		wp_register_ability(
-			'blocksmith/list-patterns',
+			'invocation/list-patterns',
 			array(
-				'label'               => __( 'List Patterns', 'blocksmith' ),
-				'description'         => __( 'Lists the block patterns (reusable sections) registered on this site, with their categories and the block types they use. Optionally includes each pattern\'s block markup.', 'blocksmith' ),
-				'category'            => BLOCKSMITH_ABILITY_CATEGORY,
+				'label'               => __( 'List Patterns', 'invocation' ),
+				'description'         => __( 'Lists the block patterns (reusable sections) registered on this site, with their categories and the block types they use. Optionally includes each pattern\'s block markup.', 'invocation' ),
+				'category'            => INVOCATION_ABILITY_CATEGORY,
 				'input_schema'        => array(
 					'type'                 => 'object',
 					'properties'           => array(
@@ -77,7 +77,7 @@ add_action(
 						'total' => array( 'type' => 'integer' ),
 					),
 				),
-				'execute_callback'    => 'blocksmith_ability_list_patterns',
+				'execute_callback'    => 'invocation_ability_list_patterns',
 				'permission_callback' => static fn (): bool => current_user_can( 'edit_posts' ),
 				'meta'                => array(
 					'show_in_rest' => true,
@@ -92,18 +92,18 @@ add_action(
 );
 
 /**
- * Execute callback for blocksmith/list-patterns.
+ * Execute callback for invocation/list-patterns.
  *
  * @param array<string, mixed> $input Validated input.
  * @return array<string, mixed> Patterns.
  */
-function blocksmith_ability_list_patterns( array $input = array() ): array {
+function invocation_ability_list_patterns( array $input = array() ): array {
 	$query           = trim( (string) ( $input['query'] ?? '' ) );
 	$category        = trim( (string) ( $input['category'] ?? '' ) );
 	$include_content = (bool) ( $input['includeContent'] ?? false );
 	$limit           = max( 1, min( 100, (int) ( $input['limit'] ?? 40 ) ) );
 
-	$items = blocksmith_get_patterns_for_context( 1000, $include_content );
+	$items = invocation_get_patterns_for_context( 1000, $include_content );
 
 	if ( '' !== $query ) {
 		$needle = strtolower( $query );
@@ -142,7 +142,7 @@ function blocksmith_ability_list_patterns( array $input = array() ): array {
  * @param bool $include_content Whether to include each pattern's block markup.
  * @return array<int, array<string, mixed>>
  */
-function blocksmith_get_patterns_for_context( int $limit = 40, bool $include_content = false ): array {
+function invocation_get_patterns_for_context( int $limit = 40, bool $include_content = false ): array {
 	if ( ! class_exists( 'WP_Block_Patterns_Registry' ) ) {
 		return array();
 	}
@@ -160,7 +160,7 @@ function blocksmith_get_patterns_for_context( int $limit = 40, bool $include_con
 		$blocks  = array();
 		if ( '' !== $content ) {
 			$names = array();
-			blocksmith_collect_block_names( parse_blocks( $content ), $names );
+			invocation_collect_block_names( parse_blocks( $content ), $names );
 			$blocks = array_slice( array_values( array_unique( $names ) ), 0, 12 );
 		}
 
@@ -195,7 +195,7 @@ function blocksmith_get_patterns_for_context( int $limit = 40, bool $include_con
  * @param int                              $limit    Maximum to return.
  * @return array<int, array<string, mixed>>
  */
-function blocksmith_rank_patterns( array $patterns, string $query, int $limit ): array {
+function invocation_rank_patterns( array $patterns, string $query, int $limit ): array {
 	$terms = array_values(
 		array_filter(
 			array_map( 'strtolower', preg_split( '/\s+/', $query, -1, PREG_SPLIT_NO_EMPTY ) ?: array() ),
@@ -242,7 +242,7 @@ function blocksmith_rank_patterns( array $patterns, string $query, int $limit ):
  * @param string $name Pattern slug, e.g. "twentytwentyfive/cta-centered-heading".
  * @return array{name: string, title: string, content: string}|null
  */
-function blocksmith_get_pattern_by_name( string $name ): ?array {
+function invocation_get_pattern_by_name( string $name ): ?array {
 	if ( ! class_exists( 'WP_Block_Patterns_Registry' ) ) {
 		return null;
 	}

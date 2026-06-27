@@ -1,19 +1,19 @@
 <?php
 /**
- * Shared generation context for Blocksmith abilities — a small provider system.
+ * Shared generation context for Invocation abilities — a small provider system.
  *
  * Each "context provider" knows how to (a) gather some grounding data and (b)
  * render it into system-instruction lines. generate-layout and refine-block both
  * build on this: gather everything once, render it, and finalise model output.
  * New providers (patterns, a site brief, …) register in one place and are
- * filterable via `blocksmith_context_providers`, including for premium add-ons.
+ * filterable via `invocation_context_providers`, including for premium add-ons.
  *
  * A provider is an array:
  *   'enabled' => fn( array $input ): bool      // whether to include it this run
  *   'gather'  => fn( array $args ): mixed       // $args = [ 'query' => string, 'input' => array ]
  *   'render'  => callable( mixed $data, array $input ): list<string>
  *
- * @package Blocksmith
+ * @package Invocation
  */
 
 declare( strict_types=1 );
@@ -27,13 +27,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  * refine-block). Filterable so site owners can raise the floor — e.g. to limit
  * who can spend the configured AI provider's budget.
  */
-function blocksmith_generation_capability(): string {
+function invocation_generation_capability(): string {
 	/**
-	 * Filters the capability required to run Blocksmith's generative abilities.
+	 * Filters the capability required to run Invocation's generative abilities.
 	 *
 	 * @param string $capability Default 'edit_posts'.
 	 */
-	return (string) apply_filters( 'blocksmith_generation_capability', 'edit_posts' );
+	return (string) apply_filters( 'invocation_generation_capability', 'edit_posts' );
 }
 
 /**
@@ -41,51 +41,51 @@ function blocksmith_generation_capability(): string {
  *
  * @return array<string, array<string, mixed>>
  */
-function blocksmith_context_providers(): array {
+function invocation_context_providers(): array {
 	$providers = array(
 		'theme'    => array(
 			'enabled' => static fn ( array $input ): bool => true,
-			'gather'  => static fn ( array $args ) => blocksmith_ability_get_theme_context(),
-			'render'  => 'blocksmith_render_theme_context',
+			'gather'  => static fn ( array $args ) => invocation_ability_get_theme_context(),
+			'render'  => 'invocation_render_theme_context',
 		),
 		'blocks'   => array(
 			'enabled' => static fn ( array $input ): bool => true,
-			'gather'  => static fn ( array $args ) => blocksmith_ability_list_blocks()['blocks'],
-			'render'  => 'blocksmith_render_blocks_context',
+			'gather'  => static fn ( array $args ) => invocation_ability_list_blocks()['blocks'],
+			'render'  => 'invocation_render_blocks_context',
 		),
 		'patterns' => array(
 			'enabled' => static fn ( array $input ): bool => ! array_key_exists( 'usePatterns', $input ) || (bool) $input['usePatterns'],
 			'gather'  => static function ( array $args ) {
-				if ( ! function_exists( 'blocksmith_get_patterns_for_context' ) ) {
+				if ( ! function_exists( 'invocation_get_patterns_for_context' ) ) {
 					return array();
 				}
 				// Rank a pool of patterns by relevance to the prompt and keep the top few.
-				return blocksmith_rank_patterns( blocksmith_get_patterns_for_context( 200 ), (string) $args['query'], 12 );
+				return invocation_rank_patterns( invocation_get_patterns_for_context( 200 ), (string) $args['query'], 12 );
 			},
-			'render'  => 'blocksmith_render_patterns_context',
+			'render'  => 'invocation_render_patterns_context',
 		),
 		'media'    => array(
-			'enabled' => static fn ( array $input ): bool => ! array_key_exists( 'useMedia', $input ) || (bool) $input['useMedia'],
-			'gather'  => static fn ( array $args ) => function_exists( 'blocksmith_ability_search_media' )
-				? blocksmith_ability_search_media( array( 'query' => $args['query'], 'limit' => 8 ) )['items']
+			'enabled' => static fn ( array $input ): bool => ( ! array_key_exists( 'useMedia', $input ) || (bool) $input['useMedia'] ) && current_user_can( 'upload_files' ),
+			'gather'  => static fn ( array $args ) => function_exists( 'invocation_ability_search_media' )
+				? invocation_ability_search_media( array( 'query' => $args['query'], 'limit' => 8 ) )['items']
 				: array(),
-			'render'  => 'blocksmith_render_media_context',
+			'render'  => 'invocation_render_media_context',
 		),
 		'links'    => array(
 			'enabled' => static fn ( array $input ): bool => ! array_key_exists( 'useInternalLinks', $input ) || (bool) $input['useInternalLinks'],
-			'gather'  => static fn ( array $args ) => function_exists( 'blocksmith_ability_search_internal_links' )
-				? blocksmith_ability_search_internal_links( array( 'query' => '', 'limit' => 15 ) )['items']
+			'gather'  => static fn ( array $args ) => function_exists( 'invocation_ability_search_internal_links' )
+				? invocation_ability_search_internal_links( array( 'query' => '', 'limit' => 15 ) )['items']
 				: array(),
-			'render'  => 'blocksmith_render_links_context',
+			'render'  => 'invocation_render_links_context',
 		),
 	);
 
 	/**
-	 * Filters the Blocksmith context providers.
+	 * Filters the Invocation context providers.
 	 *
 	 * @param array<string, array<string, mixed>> $providers Provider definitions keyed by slug.
 	 */
-	return apply_filters( 'blocksmith_context_providers', $providers );
+	return apply_filters( 'invocation_context_providers', $providers );
 }
 
 /**
@@ -95,11 +95,11 @@ function blocksmith_context_providers(): array {
  * @param array<string, mixed> $input Ability input (read for provider enable flags).
  * @return array{input: array<string, mixed>, query: string, data: array<string, mixed>, enabled: list<string>}
  */
-function blocksmith_gather_context( string $query, array $input ): array {
+function invocation_gather_context( string $query, array $input ): array {
 	$data    = array();
 	$enabled = array();
 
-	foreach ( blocksmith_context_providers() as $key => $provider ) {
+	foreach ( invocation_context_providers() as $key => $provider ) {
 		if ( isset( $provider['enabled'] ) && ! ( $provider['enabled'] )( $input ) ) {
 			continue;
 		}
@@ -125,11 +125,11 @@ function blocksmith_gather_context( string $query, array $input ): array {
 /**
  * Render all enabled providers into system-instruction lines.
  *
- * @param array<string, mixed> $ctx Output of blocksmith_gather_context().
+ * @param array<string, mixed> $ctx Output of invocation_gather_context().
  * @return list<string>
  */
-function blocksmith_context_grounding_lines( array $ctx ): array {
-	$providers = blocksmith_context_providers();
+function invocation_context_grounding_lines( array $ctx ): array {
+	$providers = invocation_context_providers();
 	$lines     = array();
 
 	foreach ( (array) ( $ctx['enabled'] ?? array() ) as $key ) {
@@ -156,7 +156,7 @@ function blocksmith_context_grounding_lines( array $ctx ): array {
  * @param array<string, mixed> $schema      JSON schema for the response.
  * @return string|WP_Error Raw JSON text or an error.
  */
-function blocksmith_generate_text( string $user_prompt, string $system, array $schema ) {
+function invocation_generate_text( string $user_prompt, string $system, array $schema ) {
 	$raise_timeout = static fn (): float => 120.0;
 	add_filter( 'wp_ai_client_default_request_timeout', $raise_timeout );
 	try {
@@ -173,22 +173,22 @@ function blocksmith_generate_text( string $user_prompt, string $system, array $s
  * Validate, normalise and repair model-produced block markup.
  *
  * @param string               $markup Raw block markup from the model.
- * @param array<string, mixed> $ctx    Output of blocksmith_gather_context().
+ * @param array<string, mixed> $ctx    Output of invocation_gather_context().
  * @return array{blockMarkup: string, warnings: list<string>}|WP_Error
  */
-function blocksmith_finalize_markup( string $markup, array $ctx ) {
+function invocation_finalize_markup( string $markup, array $ctx ) {
 	$parsed = parse_blocks( $markup );
 	if ( empty( array_filter( $parsed, static fn ( array $b ): bool => ! empty( $b['blockName'] ) ) ) ) {
-		return new WP_Error( 'blocksmith_no_blocks', __( 'The AI response did not contain any valid blocks.', 'blocksmith' ) );
+		return new WP_Error( 'invocation_no_blocks', __( 'The AI response did not contain any valid blocks.', 'invocation' ) );
 	}
 
 	$warnings = array();
-	blocksmith_collect_unregistered_blocks( $parsed, WP_Block_Type_Registry::get_instance(), $warnings );
+	invocation_collect_unregistered_blocks( $parsed, WP_Block_Type_Registry::get_instance(), $warnings );
 
 	$out   = serialize_blocks( $parsed );
 	$links = $ctx['data']['links'] ?? array();
-	if ( ! empty( $links ) && function_exists( 'blocksmith_repair_internal_links' ) ) {
-		list( $out ) = blocksmith_repair_internal_links( $out, $links );
+	if ( ! empty( $links ) && function_exists( 'invocation_repair_internal_links' ) ) {
+		list( $out ) = invocation_repair_internal_links( $out, $links );
 	}
 
 	return array(
@@ -204,7 +204,7 @@ function blocksmith_finalize_markup( string $markup, array $ctx ) {
  * @param array<string, mixed> $input Ability input.
  * @return list<string>
  */
-function blocksmith_render_theme_context( $theme, array $input ): array {
+function invocation_render_theme_context( $theme, array $input ): array {
 	$theme       = is_array( $theme ) ? $theme : array();
 	$color_slugs = wp_list_pluck( $theme['colors'] ?? array(), 'slug' );
 	$font_slugs  = wp_list_pluck( $theme['fontFamilies'] ?? array(), 'slug' );
@@ -232,7 +232,7 @@ function blocksmith_render_theme_context( $theme, array $input ): array {
  * @param array<string, mixed>             $input  Ability input.
  * @return list<string>
  */
-function blocksmith_render_blocks_context( $blocks, array $input ): array {
+function invocation_render_blocks_context( $blocks, array $input ): array {
 	$blocks          = is_array( $blocks ) ? $blocks : array();
 	$registered_core = array();
 	$custom          = array();
@@ -281,7 +281,7 @@ function blocksmith_render_blocks_context( $blocks, array $input ): array {
  * @param array<string, mixed>             $input    Ability input.
  * @return list<string>
  */
-function blocksmith_render_patterns_context( $patterns, array $input ): array {
+function invocation_render_patterns_context( $patterns, array $input ): array {
 	$patterns = is_array( $patterns ) ? $patterns : array();
 	if ( empty( $patterns ) ) {
 		return array();
@@ -304,7 +304,7 @@ function blocksmith_render_patterns_context( $patterns, array $input ): array {
  * @param array<string, mixed>             $input Ability input.
  * @return list<string>
  */
-function blocksmith_render_media_context( $media, array $input ): array {
+function invocation_render_media_context( $media, array $input ): array {
 	$media = is_array( $media ) ? $media : array();
 	if ( empty( $media ) ) {
 		return array( 'No media library images are available. Do not add image blocks; never invent image URLs.' );
@@ -331,7 +331,7 @@ function blocksmith_render_media_context( $media, array $input ): array {
  * @param array<string, mixed>             $input Ability input.
  * @return list<string>
  */
-function blocksmith_render_links_context( $links, array $input ): array {
+function invocation_render_links_context( $links, array $input ): array {
 	$links = is_array( $links ) ? $links : array();
 	if ( empty( $links ) ) {
 		return array();
@@ -351,14 +351,14 @@ function blocksmith_render_links_context( $links, array $input ): array {
  * @param WP_Block_Type_Registry           $registry Block registry.
  * @param list<string>                     $warnings Accumulator (by reference).
  */
-function blocksmith_collect_unregistered_blocks( array $blocks, WP_Block_Type_Registry $registry, array &$warnings ): void {
+function invocation_collect_unregistered_blocks( array $blocks, WP_Block_Type_Registry $registry, array &$warnings ): void {
 	foreach ( $blocks as $block ) {
 		$name = $block['blockName'] ?? null;
 		if ( is_string( $name ) && '' !== $name && ! $registry->is_registered( $name ) ) {
 			$warnings[] = $name;
 		}
 		if ( ! empty( $block['innerBlocks'] ) && is_array( $block['innerBlocks'] ) ) {
-			blocksmith_collect_unregistered_blocks( $block['innerBlocks'], $registry, $warnings );
+			invocation_collect_unregistered_blocks( $block['innerBlocks'], $registry, $warnings );
 		}
 	}
 }
@@ -369,13 +369,13 @@ function blocksmith_collect_unregistered_blocks( array $blocks, WP_Block_Type_Re
  * @param array<int, array<string, mixed>> $blocks Parsed blocks.
  * @param list<string>                     $names  Accumulator (by reference).
  */
-function blocksmith_collect_block_names( array $blocks, array &$names ): void {
+function invocation_collect_block_names( array $blocks, array &$names ): void {
 	foreach ( $blocks as $block ) {
 		if ( ! empty( $block['blockName'] ) ) {
 			$names[] = (string) $block['blockName'];
 		}
 		if ( ! empty( $block['innerBlocks'] ) && is_array( $block['innerBlocks'] ) ) {
-			blocksmith_collect_block_names( $block['innerBlocks'], $names );
+			invocation_collect_block_names( $block['innerBlocks'], $names );
 		}
 	}
 }

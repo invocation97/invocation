@@ -1,14 +1,14 @@
 <?php
 /**
- * Blocksmith abilities.
+ * Invocation abilities.
  *
  * Abilities are the unit of capability in WordPress 7.0. By registering here we
  * get three things for free: server-side validation against the JSON schemas,
  * REST exposure (`meta.show_in_rest`), and automatic surfacing through the core
  * MCP Adapter — which is what lets external agents (e.g. Claude Code) drive
- * Blocksmith without any extra transport code.
+ * Invocation without any extra transport code.
  *
- * @package Blocksmith
+ * @package Invocation
  */
 
 declare( strict_types=1 );
@@ -17,36 +17,36 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const BLOCKSMITH_ABILITY_CATEGORY = 'blocksmith';
+const INVOCATION_ABILITY_CATEGORY = 'invocation';
 
 /**
- * Register the category that groups all Blocksmith abilities.
+ * Register the category that groups all Invocation abilities.
  */
 add_action(
 	'wp_abilities_api_categories_init',
 	static function (): void {
 		wp_register_ability_category(
-			BLOCKSMITH_ABILITY_CATEGORY,
+			INVOCATION_ABILITY_CATEGORY,
 			array(
-				'label'       => __( 'Blocksmith', 'blocksmith' ),
-				'description' => __( 'AI-assisted Gutenberg layout generation grounded in the active block theme.', 'blocksmith' ),
+				'label'       => __( 'Invocation', 'invocation' ),
+				'description' => __( 'AI-assisted Gutenberg layout generation grounded in the active block theme.', 'invocation' ),
 			)
 		);
 	}
 );
 
 /**
- * Register Blocksmith abilities.
+ * Register Invocation abilities.
  */
 add_action(
 	'wp_abilities_api_init',
 	static function (): void {
 		wp_register_ability(
-			'blocksmith/get-theme-context',
+			'invocation/get-theme-context',
 			array(
-				'label'               => __( 'Get Theme Context', 'blocksmith' ),
-				'description'         => __( 'Returns the active theme\'s design tokens (color palette, typography, layout sizes) derived from theme.json, so generated content stays on-theme.', 'blocksmith' ),
-				'category'            => BLOCKSMITH_ABILITY_CATEGORY,
+				'label'               => __( 'Get Theme Context', 'invocation' ),
+				'description'         => __( 'Returns the active theme\'s design tokens (color palette, typography, layout sizes) derived from theme.json, so generated content stays on-theme.', 'invocation' ),
+				'category'            => INVOCATION_ABILITY_CATEGORY,
 				'input_schema'        => array(
 					'type'                 => 'object',
 					'properties'           => array(),
@@ -88,7 +88,7 @@ add_action(
 						),
 					),
 				),
-				'execute_callback'    => 'blocksmith_ability_get_theme_context',
+				'execute_callback'    => 'invocation_ability_get_theme_context',
 				'permission_callback' => static fn (): bool => current_user_can( 'edit_posts' ),
 				'meta'                => array(
 					'show_in_rest' => true,
@@ -101,11 +101,11 @@ add_action(
 		);
 
 		wp_register_ability(
-			'blocksmith/list-blocks',
+			'invocation/list-blocks',
 			array(
-				'label'               => __( 'List Blocks', 'blocksmith' ),
-				'description'         => __( 'Lists the block types registered on this site (core, theme, and plugin blocks) that AI may use when composing a layout.', 'blocksmith' ),
-				'category'            => BLOCKSMITH_ABILITY_CATEGORY,
+				'label'               => __( 'List Blocks', 'invocation' ),
+				'description'         => __( 'Lists the block types registered on this site (core, theme, and plugin blocks) that AI may use when composing a layout.', 'invocation' ),
+				'category'            => INVOCATION_ABILITY_CATEGORY,
 				'input_schema'        => array(
 					'type'                 => 'object',
 					'properties'           => array(),
@@ -128,7 +128,7 @@ add_action(
 						),
 					),
 				),
-				'execute_callback'    => 'blocksmith_ability_list_blocks',
+				'execute_callback'    => 'invocation_ability_list_blocks',
 				'permission_callback' => static fn (): bool => current_user_can( 'edit_posts' ),
 				'meta'                => array(
 					'show_in_rest' => true,
@@ -148,7 +148,7 @@ add_action(
  * @param array<string, mixed> $input Validated (empty) input.
  * @return array<string, mixed> Theme context.
  */
-function blocksmith_ability_get_theme_context( array $input = array() ): array {
+function invocation_ability_get_theme_context( array $input = array() ): array {
 	unset( $input );
 
 	$settings = function_exists( 'wp_get_global_settings' ) ? wp_get_global_settings() : array();
@@ -190,7 +190,7 @@ function blocksmith_ability_get_theme_context( array $input = array() ): array {
  * @param array<string, mixed> $input Validated (empty) input.
  * @return array<string, mixed> Registered blocks.
  */
-function blocksmith_ability_list_blocks( array $input = array() ): array {
+function invocation_ability_list_blocks( array $input = array() ): array {
 	unset( $input );
 
 	$registry = WP_Block_Type_Registry::get_instance();

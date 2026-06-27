@@ -1,14 +1,14 @@
 <?php
 /**
- * The blocksmith/generate-layout ability.
+ * The invocation/generate-layout ability.
  *
- * This is the core of Blocksmith: it grounds the model in the active theme's
+ * This is the core of Invocation: it grounds the model in the active theme's
  * design tokens and the site's registered blocks, asks for a structured JSON
  * response, then validates and normalises the result through WordPress' native
  * block parser/serialiser. Nothing is persisted — the caller (editor sidebar,
  * REST, or an MCP agent) decides what to do with the returned markup.
  *
- * @package Blocksmith
+ * @package Invocation
  */
 
 declare( strict_types=1 );
@@ -21,11 +21,11 @@ add_action(
 	'wp_abilities_api_init',
 	static function (): void {
 		wp_register_ability(
-			'blocksmith/generate-layout',
+			'invocation/generate-layout',
 			array(
-				'label'               => __( 'Generate Layout', 'blocksmith' ),
-				'description'         => __( 'Generates a complete, on-theme Gutenberg block layout from a natural-language prompt, using only the blocks registered on this site and the active theme\'s design tokens. Returns block markup ready to insert into the editor.', 'blocksmith' ),
-				'category'            => BLOCKSMITH_ABILITY_CATEGORY,
+				'label'               => __( 'Generate Layout', 'invocation' ),
+				'description'         => __( 'Generates a complete, on-theme Gutenberg block layout from a natural-language prompt, using only the blocks registered on this site and the active theme\'s design tokens. Returns block markup ready to insert into the editor.', 'invocation' ),
+				'category'            => INVOCATION_ABILITY_CATEGORY,
 				'input_schema'        => array(
 					'type'                 => 'object',
 					'properties'           => array(
@@ -94,8 +94,8 @@ add_action(
 						),
 					),
 				),
-				'execute_callback'    => 'blocksmith_ability_generate_layout',
-				'permission_callback' => static fn (): bool => current_user_can( blocksmith_generation_capability() ),
+				'execute_callback'    => 'invocation_ability_generate_layout',
+				'permission_callback' => static fn (): bool => current_user_can( invocation_generation_capability() ),
 				'meta'                => array(
 					'show_in_rest' => true,
 					'annotations'  => array(
@@ -113,19 +113,19 @@ add_action(
 );
 
 /**
- * Execute callback for blocksmith/generate-layout.
+ * Execute callback for invocation/generate-layout.
  *
  * @param array<string, mixed> $input Validated input (prompt required).
  * @return array<string, mixed>|WP_Error Structured layout or an error.
  */
-function blocksmith_ability_generate_layout( array $input = array() ) {
+function invocation_ability_generate_layout( array $input = array() ) {
 	$prompt = trim( (string) ( $input['prompt'] ?? '' ) );
 	if ( '' === $prompt ) {
-		return new WP_Error( 'blocksmith_missing_prompt', __( 'A prompt is required.', 'blocksmith' ) );
+		return new WP_Error( 'invocation_missing_prompt', __( 'A prompt is required.', 'invocation' ) );
 	}
 
 	if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
-		return new WP_Error( 'blocksmith_no_ai_client', __( 'The WordPress AI Client is not available.', 'blocksmith' ) );
+		return new WP_Error( 'invocation_no_ai_client', __( 'The WordPress AI Client is not available.', 'invocation' ) );
 	}
 
 	$scope        = (string) ( $input['scope'] ?? 'section' );
@@ -135,11 +135,11 @@ function blocksmith_ability_generate_layout( array $input = array() ) {
 	$pattern = null;
 	if ( $fill ) {
 		if ( '' === $pattern_name ) {
-			return new WP_Error( 'blocksmith_missing_pattern', __( 'A patternName is required to fill from a pattern.', 'blocksmith' ) );
+			return new WP_Error( 'invocation_missing_pattern', __( 'A patternName is required to fill from a pattern.', 'invocation' ) );
 		}
-		$pattern = function_exists( 'blocksmith_get_pattern_by_name' ) ? blocksmith_get_pattern_by_name( $pattern_name ) : null;
+		$pattern = function_exists( 'invocation_get_pattern_by_name' ) ? invocation_get_pattern_by_name( $pattern_name ) : null;
 		if ( null === $pattern ) {
-			return new WP_Error( 'blocksmith_pattern_not_found', __( 'The requested pattern was not found.', 'blocksmith' ) );
+			return new WP_Error( 'invocation_pattern_not_found', __( 'The requested pattern was not found.', 'invocation' ) );
 		}
 		$scope = 'fill-from-pattern';
 	}
@@ -151,8 +151,8 @@ function blocksmith_ability_generate_layout( array $input = array() ) {
 		$ctx_input['usePatterns'] = false;
 	}
 
-	$ctx    = blocksmith_gather_context( $prompt, $ctx_input );
-	$system = blocksmith_build_layout_system_instruction( $ctx, $input, $scope );
+	$ctx    = invocation_gather_context( $prompt, $ctx_input );
+	$system = invocation_build_layout_system_instruction( $ctx, $input, $scope );
 
 	$user_prompt = $prompt;
 	if ( $fill ) {
@@ -180,7 +180,7 @@ function blocksmith_ability_generate_layout( array $input = array() ) {
 		'additionalProperties' => false,
 	);
 
-	$response = blocksmith_generate_text( $user_prompt, $system, $json_schema );
+	$response = invocation_generate_text( $user_prompt, $system, $json_schema );
 
 	if ( is_wp_error( $response ) ) {
 		return $response;
@@ -188,10 +188,10 @@ function blocksmith_ability_generate_layout( array $input = array() ) {
 
 	$data = json_decode( (string) $response, true );
 	if ( ! is_array( $data ) || empty( $data['blockMarkup'] ) ) {
-		return new WP_Error( 'blocksmith_invalid_response', __( 'The AI response did not contain usable block markup.', 'blocksmith' ) );
+		return new WP_Error( 'invocation_invalid_response', __( 'The AI response did not contain usable block markup.', 'invocation' ) );
 	}
 
-	$final = blocksmith_finalize_markup( (string) $data['blockMarkup'], $ctx );
+	$final = invocation_finalize_markup( (string) $data['blockMarkup'], $ctx );
 	if ( is_wp_error( $final ) ) {
 		return $final;
 	}
@@ -208,12 +208,12 @@ function blocksmith_ability_generate_layout( array $input = array() ) {
  *
  * Task-specific framing on top of the shared grounding context.
  *
- * @param array<string, mixed> $ctx   Output of blocksmith_gather_context().
+ * @param array<string, mixed> $ctx   Output of invocation_gather_context().
  * @param array<string, mixed> $input Ability input.
  * @param string               $scope Generation scope (section|full-page|fill-from-pattern).
  * @return string
  */
-function blocksmith_build_layout_system_instruction( array $ctx, array $input, string $scope = 'section' ): string {
+function invocation_build_layout_system_instruction( array $ctx, array $input, string $scope = 'section' ): string {
 	$tone     = (string) ( $input['tone'] ?? 'professional' );
 	$audience = (string) ( $input['audience'] ?? 'a general audience' );
 	$title    = (string) ( $input['postTitle'] ?? '' );
@@ -225,14 +225,14 @@ function blocksmith_build_layout_system_instruction( array $ctx, array $input, s
 		'',
 	);
 
-	$lines = array_merge( $lines, blocksmith_layout_scope_lines( $scope ), array( '' ) );
+	$lines = array_merge( $lines, invocation_layout_scope_lines( $scope ), array( '' ) );
 
 	$lines[] = 'Layout guidance:';
 	$lines[] = '- Prefer core layout blocks (core/group, core/columns, core/column, core/cover, core/buttons) to create structured, responsive sections.';
 	$lines[] = '- Establish a clear heading hierarchy (a single h1 or h2 lead, then subsections).';
 	$lines[] = '';
 
-	$lines = array_merge( $lines, blocksmith_context_grounding_lines( $ctx ) );
+	$lines = array_merge( $lines, invocation_context_grounding_lines( $ctx ) );
 
 	$lines[] = '';
 	$lines[] = 'Writing tone: ' . $tone . '. Target audience: ' . $audience . '.';
@@ -249,7 +249,7 @@ function blocksmith_build_layout_system_instruction( array $ctx, array $input, s
  * @param string $scope Generation scope.
  * @return list<string>
  */
-function blocksmith_layout_scope_lines( string $scope ): array {
+function invocation_layout_scope_lines( string $scope ): array {
 	switch ( $scope ) {
 		case 'full-page':
 			return array( 'Scope: build a COMPLETE page composed of several distinct sections (e.g. a hero, supporting sections, and a call to action) in a sensible order.' );

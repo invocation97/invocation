@@ -1,11 +1,11 @@
 <?php
 /**
- * The blocksmith/search-media ability.
+ * The invocation/search-media ability.
  *
  * Lets the AI find real images in the media library so generated layouts
  * reference actual attachments instead of invented URLs.
  *
- * @package Blocksmith
+ * @package Invocation
  */
 
 declare( strict_types=1 );
@@ -18,11 +18,11 @@ add_action(
 	'wp_abilities_api_init',
 	static function (): void {
 		wp_register_ability(
-			'blocksmith/search-media',
+			'invocation/search-media',
 			array(
-				'label'               => __( 'Search Media', 'blocksmith' ),
-				'description'         => __( 'Searches the WordPress media library for attachments matching a query (by title, caption, alt text, or filename). Returns real attachment IDs and URLs so layouts can use existing media instead of inventing image URLs.', 'blocksmith' ),
-				'category'            => BLOCKSMITH_ABILITY_CATEGORY,
+				'label'               => __( 'Search Media', 'invocation' ),
+				'description'         => __( 'Searches the WordPress media library for attachments matching a query (by title, caption, alt text, or filename). Returns real attachment IDs and URLs so layouts can use existing media instead of inventing image URLs.', 'invocation' ),
+				'category'            => INVOCATION_ABILITY_CATEGORY,
 				'input_schema'        => array(
 					'type'                 => 'object',
 					'properties'           => array(
@@ -66,8 +66,8 @@ add_action(
 						'total' => array( 'type' => 'integer' ),
 					),
 				),
-				'execute_callback'    => 'blocksmith_ability_search_media',
-				'permission_callback' => static fn (): bool => current_user_can( 'edit_posts' ),
+				'execute_callback'    => 'invocation_ability_search_media',
+				'permission_callback' => static fn (): bool => current_user_can( 'upload_files' ),
 				'meta'                => array(
 					'show_in_rest' => true,
 					'annotations'  => array(
@@ -81,18 +81,18 @@ add_action(
 );
 
 /**
- * Execute callback for blocksmith/search-media.
+ * Execute callback for invocation/search-media.
  *
  * @param array<string, mixed> $input Validated input.
  * @return array<string, mixed> Matching media items.
  */
-function blocksmith_ability_search_media( array $input = array() ): array {
+function invocation_ability_search_media( array $input = array() ): array {
 	$query = trim( (string) ( $input['query'] ?? '' ) );
 	$limit = max( 1, min( 50, (int) ( $input['limit'] ?? 10 ) ) );
 	$mime  = trim( (string) ( $input['mimeType'] ?? 'image' ) );
 
 	$cache_key = 'search_media_' . md5( $query . '|' . $mime . '|' . $limit );
-	$cached    = wp_cache_get( $cache_key, 'blocksmith' );
+	$cached    = wp_cache_get( $cache_key, 'invocation' );
 	if ( is_array( $cached ) ) {
 		return $cached;
 	}
@@ -164,7 +164,7 @@ function blocksmith_ability_search_media( array $input = array() ): array {
 		'items' => $items,
 		'total' => $total,
 	);
-	wp_cache_set( $cache_key, $result, 'blocksmith', MINUTE_IN_SECONDS );
+	wp_cache_set( $cache_key, $result, 'invocation', MINUTE_IN_SECONDS );
 
 	return $result;
 }

@@ -1,14 +1,14 @@
-# Blocksmith — Claude Code plugin
+# Invocation — Claude Code plugin
 
-Drive your WordPress site's [Blocksmith](https://github.com/invocation97/blocksmith-plugin) tools from Claude Code: generate, fill, and refine on-theme Gutenberg layouts, and read your site's theme tokens, patterns, media, and internal links.
+Drive your WordPress site's [Invocation](https://github.com/invocation97/blocksmith-plugin) tools from Claude Code: generate, fill, and refine on-theme Gutenberg layouts, and read your site's theme tokens, patterns, media, and internal links.
 
-It connects to Blocksmith's MCP server, which is provided by the official [WordPress MCP Adapter](https://github.com/WordPress/mcp-adapter).
+It connects to Invocation's MCP server, which is provided by the official [WordPress MCP Adapter](https://github.com/WordPress/mcp-adapter).
 
 ## Prerequisites (on the WordPress site)
 
 1. WordPress 7.0+ with an AI provider configured under **Settings → Connectors**.
-2. The **Blocksmith** plugin installed and active.
-3. The **MCP Adapter** plugin installed and active — this exposes Blocksmith's tools over MCP at `/wp-json/blocksmith/mcp`.
+2. The **Invocation** plugin installed and active.
+3. The **MCP Adapter** plugin installed and active — this exposes Invocation's tools over MCP at `/wp-json/invocation/mcp`.
 4. An **Application Password** for your user: *Users → Profile → Application Passwords*.
 
 ## Install the Claude Code plugin
@@ -16,7 +16,7 @@ It connects to Blocksmith's MCP server, which is provided by the official [WordP
 ```bash
 # Add this directory (or repo) as a marketplace, then install
 /plugin marketplace add invocation97/blocksmith-plugin
-/plugin install blocksmith@blocksmith
+/plugin install invocation@invocation
 ```
 
 For local development you can point the marketplace at this folder directly:
@@ -27,7 +27,7 @@ For local development you can point the marketplace at this folder directly:
 
 At install you'll be prompted for three values (used by the connection):
 
-- `WP_API_URL` — `https://your-site.com/wp-json/blocksmith/mcp`
+- `WP_API_URL` — `https://your-site.com/wp-json/invocation/mcp`
 - `WP_API_USERNAME` — your WordPress username
 - `WP_API_PASSWORD` — the Application Password you created
 
@@ -42,9 +42,9 @@ If you prefer no local proxy, you can connect Claude Code straight to the endpoi
 ```json
 {
   "mcpServers": {
-    "blocksmith": {
+    "invocation": {
       "type": "http",
-      "url": "${WP_SITE_URL}/wp-json/blocksmith/mcp",
+      "url": "${WP_SITE_URL}/wp-json/invocation/mcp",
       "headers": { "Authorization": "Basic ${WP_AUTH}" },
       "env": { "WP_SITE_URL": "", "WP_AUTH": "" }
     }
@@ -52,10 +52,10 @@ If you prefer no local proxy, you can connect Claude Code straight to the endpoi
 }
 ```
 
-where `WP_AUTH` is base64 of `username:application-password`. If your site doesn't use pretty permalinks, use `${WP_SITE_URL}/?rest_route=/blocksmith/mcp` instead.
+where `WP_AUTH` is base64 of `username:application-password`. If your site doesn't use pretty permalinks, use `${WP_SITE_URL}/?rest_route=/invocation/mcp` instead.
 
 ## Tools
 
-`blocksmith-generate-layout`, `blocksmith-refine-block`, `blocksmith-list-patterns`, `blocksmith-search-media`, `blocksmith-search-internal-links`, `blocksmith-get-theme-context`, `blocksmith-list-blocks`, `blocksmith-gather-site-context`.
+`invocation-generate-layout`, `invocation-refine-block`, `invocation-list-patterns`, `invocation-search-media`, `invocation-search-internal-links`, `invocation-get-theme-context`, `invocation-list-blocks`, `invocation-gather-site-context`.
 
-Try: `/blocksmith:build-section a pricing section with three plan cards`
+Try: `/invocation:build-section a pricing section with three plan cards`

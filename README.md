@@ -1,8 +1,8 @@
-# Blocksmith
+# Invocation
 
 Build styled Gutenberg page content with AI — grounded in your own block theme.
 
-Blocksmith is a self-hosted, open-source WordPress plugin. It uses **WordPress 7.0 core** for everything provider-related (you connect your own OpenAI / Anthropic / Google key once under **Settings → Connectors**), and focuses on the one thing core doesn't do: turning your site's actual registered blocks and `theme.json` design tokens into valid, on-theme Gutenberg layouts.
+Invocation is a self-hosted, open-source WordPress plugin. It uses **WordPress 7.0 core** for everything provider-related (you connect your own OpenAI / Anthropic / Google key once under **Settings → Connectors**), and focuses on the one thing core doesn't do: turning your site's actual registered blocks and `theme.json` design tokens into valid, on-theme Gutenberg layouts.
 
 No external service, no database, no Docker. Bring your own AI key; everything runs on your WordPress server.
 
@@ -14,19 +14,19 @@ No external service, no database, no Docker. Bring your own AI key; everything r
 
 ## How it works
 
-Blocksmith registers a set of **Abilities** (the WordPress 7.0 capability primitive):
+Invocation registers a set of **Abilities** (the WordPress 7.0 capability primitive):
 
 | Ability | Purpose |
 | --- | --- |
-| `blocksmith/get-theme-context` | Reads color palette, typography, and layout sizes from `theme.json`. |
-| `blocksmith/list-blocks` | Lists the block types registered on the site. |
-| `blocksmith/generate-layout` *(planned)* | Composes a validated, on-theme Gutenberg layout from a prompt. |
+| `invocation/get-theme-context` | Reads color palette, typography, and layout sizes from `theme.json`. |
+| `invocation/list-blocks` | Lists the block types registered on the site. |
+| `invocation/generate-layout` *(planned)* | Composes a validated, on-theme Gutenberg layout from a prompt. |
 
 Because these are abilities, they are automatically:
 
 - validated against their JSON schemas,
 - exposed over the REST API, and
-- surfaced through the core **MCP Adapter** — so external agents like **Claude Code** can drive Blocksmith with no extra transport code.
+- surfaced through the core **MCP Adapter** — so external agents like **Claude Code** can drive Invocation with no extra transport code.
 
 ## Status
 

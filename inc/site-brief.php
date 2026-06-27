@@ -3,11 +3,11 @@
  * Site Brief: a structured, user-editable summary of the site that grounds every
  * generation in the site's purpose, audience, voice and offerings.
  *
- * Stored in the `blocksmith_site_brief` option (exposed via /wp/v2/settings so
- * the admin app can read/write it), produced by the blocksmith/gather-site-context
+ * Stored in the `invocation_site_brief` option (exposed via /wp/v2/settings so
+ * the admin app can read/write it), produced by the invocation/gather-site-context
  * ability, and injected into prompts as a context provider.
  *
- * @package Blocksmith
+ * @package Invocation
  */
 
 declare( strict_types=1 );
@@ -16,14 +16,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const BLOCKSMITH_SITE_BRIEF_OPTION = 'blocksmith_site_brief';
+const INVOCATION_SITE_BRIEF_OPTION = 'invocation_site_brief';
 
 /**
  * Default (empty) brief shape.
  *
  * @return array<string, mixed>
  */
-function blocksmith_default_site_brief(): array {
+function invocation_default_site_brief(): array {
 	return array(
 		'purpose'     => '',
 		'audience'    => '',
@@ -40,16 +40,16 @@ function blocksmith_default_site_brief(): array {
  *
  * @return array<string, mixed>
  */
-function blocksmith_get_site_brief(): array {
-	$brief = get_option( BLOCKSMITH_SITE_BRIEF_OPTION, array() );
-	return wp_parse_args( is_array( $brief ) ? $brief : array(), blocksmith_default_site_brief() );
+function invocation_get_site_brief(): array {
+	$brief = get_option( INVOCATION_SITE_BRIEF_OPTION, array() );
+	return wp_parse_args( is_array( $brief ) ? $brief : array(), invocation_default_site_brief() );
 }
 
 /**
  * Whether the brief has any meaningful content.
  */
-function blocksmith_has_site_brief(): bool {
-	$brief = blocksmith_get_site_brief();
+function invocation_has_site_brief(): bool {
+	$brief = invocation_get_site_brief();
 	foreach ( array( 'purpose', 'audience', 'toneVoice' ) as $key ) {
 		if ( '' !== trim( (string) $brief[ $key ] ) ) {
 			return true;
@@ -65,9 +65,9 @@ function blocksmith_has_site_brief(): bool {
  * @param mixed $value Incoming value.
  * @return array<string, mixed>
  */
-function blocksmith_sanitize_site_brief( $value ): array {
+function invocation_sanitize_site_brief( $value ): array {
 	$value    = is_array( $value ) ? $value : array();
-	$defaults = blocksmith_default_site_brief();
+	$defaults = invocation_default_site_brief();
 	$clean    = array();
 
 	foreach ( array( 'purpose', 'audience', 'toneVoice', 'generatedAt' ) as $key ) {
@@ -94,11 +94,11 @@ add_action(
 	static function (): void {
 		register_setting(
 			'options',
-			BLOCKSMITH_SITE_BRIEF_OPTION,
+			INVOCATION_SITE_BRIEF_OPTION,
 			array(
 				'type'              => 'object',
-				'default'           => blocksmith_default_site_brief(),
-				'sanitize_callback' => 'blocksmith_sanitize_site_brief',
+				'default'           => invocation_default_site_brief(),
+				'sanitize_callback' => 'invocation_sanitize_site_brief',
 				'show_in_rest'      => array(
 					'schema' => array(
 						'type'                 => 'object',
@@ -135,11 +135,11 @@ add_action(
 	'wp_abilities_api_init',
 	static function (): void {
 		wp_register_ability(
-			'blocksmith/gather-site-context',
+			'invocation/gather-site-context',
 			array(
-				'label'               => __( 'Gather Site Context', 'blocksmith' ),
-				'description'         => __( 'Analyzes the site (identity plus a sample of published pages and posts) and produces a structured Site Brief — purpose, audience, brand voice, offerings, key terms and things to avoid — saving it for use in future generations.', 'blocksmith' ),
-				'category'            => BLOCKSMITH_ABILITY_CATEGORY,
+				'label'               => __( 'Gather Site Context', 'invocation' ),
+				'description'         => __( 'Analyzes the site (identity plus a sample of published pages and posts) and produces a structured Site Brief — purpose, audience, brand voice, offerings, key terms and things to avoid — saving it for use in future generations.', 'invocation' ),
+				'category'            => INVOCATION_ABILITY_CATEGORY,
 				'input_schema'        => array(
 					'type'                 => 'object',
 					'properties'           => array(
@@ -174,7 +174,7 @@ add_action(
 						'generatedAt' => array( 'type' => 'string' ),
 					),
 				),
-				'execute_callback'    => 'blocksmith_ability_gather_site_context',
+				'execute_callback'    => 'invocation_ability_gather_site_context',
 				'permission_callback' => static fn (): bool => current_user_can( 'manage_options' ),
 				'meta'                => array(
 					'show_in_rest' => true,
@@ -191,18 +191,18 @@ add_action(
 );
 
 /**
- * Execute callback for blocksmith/gather-site-context.
+ * Execute callback for invocation/gather-site-context.
  *
  * @param array<string, mixed> $input Validated input.
  * @return array<string, mixed>|WP_Error The generated (and saved) brief.
  */
-function blocksmith_ability_gather_site_context( array $input = array() ) {
+function invocation_ability_gather_site_context( array $input = array() ) {
 	if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
-		return new WP_Error( 'blocksmith_no_ai_client', __( 'The WordPress AI Client is not available.', 'blocksmith' ) );
+		return new WP_Error( 'invocation_no_ai_client', __( 'The WordPress AI Client is not available.', 'invocation' ) );
 	}
 
 	$max   = max( 1, min( 50, (int) ( $input['maxPages'] ?? 15 ) ) );
-	$corpus = blocksmith_build_site_corpus( $max );
+	$corpus = invocation_build_site_corpus( $max );
 
 	$system = implode(
 		"\n",
@@ -250,20 +250,20 @@ function blocksmith_ability_gather_site_context( array $input = array() ) {
 
 	$user_prompt = "Site name: " . get_bloginfo( 'name' ) . "\nTagline: " . get_bloginfo( 'description' ) . "\n\nContent sample:\n" . $corpus;
 
-	$response = blocksmith_generate_text( $user_prompt, $system, $schema );
+	$response = invocation_generate_text( $user_prompt, $system, $schema );
 	if ( is_wp_error( $response ) ) {
 		return $response;
 	}
 
 	$data = json_decode( (string) $response, true );
 	if ( ! is_array( $data ) ) {
-		return new WP_Error( 'blocksmith_invalid_response', __( 'The AI response could not be parsed.', 'blocksmith' ) );
+		return new WP_Error( 'invocation_invalid_response', __( 'The AI response could not be parsed.', 'invocation' ) );
 	}
 
-	$brief                = wp_parse_args( $data, blocksmith_default_site_brief() );
+	$brief                = wp_parse_args( $data, invocation_default_site_brief() );
 	$brief['generatedAt'] = current_time( 'mysql' );
 
-	update_option( BLOCKSMITH_SITE_BRIEF_OPTION, $brief );
+	update_option( INVOCATION_SITE_BRIEF_OPTION, $brief );
 
 	return $brief;
 }
@@ -274,7 +274,7 @@ function blocksmith_ability_gather_site_context( array $input = array() ) {
  * @param int $max Maximum posts/pages to include.
  * @return string
  */
-function blocksmith_build_site_corpus( int $max ): string {
+function invocation_build_site_corpus( int $max ): string {
 	$posts = get_posts(
 		array(
 			'post_type'   => array( 'page', 'post' ),
@@ -306,13 +306,13 @@ function blocksmith_build_site_corpus( int $max ): string {
  * Register the Site Brief as a context provider (demonstrates the filter seam).
  */
 add_filter(
-	'blocksmith_context_providers',
+	'invocation_context_providers',
 	static function ( array $providers ): array {
 		$providers['brief'] = array(
 			'enabled' => static fn ( array $input ): bool =>
-				( ! array_key_exists( 'useSiteBrief', $input ) || (bool) $input['useSiteBrief'] ) && blocksmith_has_site_brief(),
-			'gather'  => static fn ( array $args ) => blocksmith_get_site_brief(),
-			'render'  => 'blocksmith_render_brief_context',
+				( ! array_key_exists( 'useSiteBrief', $input ) || (bool) $input['useSiteBrief'] ) && invocation_has_site_brief(),
+			'gather'  => static fn ( array $args ) => invocation_get_site_brief(),
+			'render'  => 'invocation_render_brief_context',
 		);
 		return $providers;
 	}
@@ -325,7 +325,7 @@ add_filter(
  * @param array<string, mixed> $input Ability input.
  * @return list<string>
  */
-function blocksmith_render_brief_context( $brief, array $input ): array {
+function invocation_render_brief_context( $brief, array $input ): array {
 	$brief = is_array( $brief ) ? $brief : array();
 	$lines = array( 'Site brief — keep all content consistent with this:' );
 
