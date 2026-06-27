@@ -34,6 +34,8 @@ function blocksmith_mcp_abilities(): array {
 		'blocksmith/get-theme-context',
 		'blocksmith/list-blocks',
 		'blocksmith/gather-site-context',
+		'blocksmith/create-page',
+		'blocksmith/update-page',
 	);
 }
 

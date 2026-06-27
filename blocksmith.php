@@ -77,6 +77,7 @@ function blocksmith_bootstrap(): void {
 	require_once BLOCKSMITH_DIR . 'inc/context.php';
 	require_once BLOCKSMITH_DIR . 'inc/generate-layout.php';
 	require_once BLOCKSMITH_DIR . 'inc/refine-block.php';
+	require_once BLOCKSMITH_DIR . 'inc/pages.php';
 	require_once BLOCKSMITH_DIR . 'inc/site-brief.php';
 	require_once BLOCKSMITH_DIR . 'inc/mcp.php';
 	require_once BLOCKSMITH_DIR . 'inc/admin.php';
