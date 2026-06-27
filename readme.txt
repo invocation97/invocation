@@ -44,4 +44,4 @@ Review the terms and privacy policy of whichever provider you connect (e.g. Open
 
 == Development ==
 
-Invocation is open source. The block-editor UI is built from the JavaScript sources in `src/` (bundled with the plugin) using @wordpress/scripts — run `npm install && npm run build` to regenerate `build/`. Source repository: https://github.com/invocation97/blocksmith-plugin
+Invocation is open source. The block-editor UI is built from the JavaScript sources in `src/` (bundled with the plugin) using @wordpress/scripts — run `npm install && npm run build` to regenerate `build/`. Source repository: https://github.com/invocation97/invocation

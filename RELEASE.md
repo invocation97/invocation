@@ -91,7 +91,7 @@ This is distributed separately from the WP plugin (it's not in the zip).
 1. Keep `clients/claude-code/.claude-plugin/plugin.json` `version` in sync with the WP plugin (or version it independently).
 2. Users install it from this repo:
    ```
-   /plugin marketplace add invocation97/blocksmith-plugin
+   /plugin marketplace add invocation97/invocation
    /plugin install invocation@invocation
    ```
    For that to resolve, ensure a `.claude-plugin/marketplace.json` is discoverable at the path the marketplace points to (currently under `clients/claude-code/`). For public GitHub install you may move/copy the marketplace manifest to the repo root, or host the Claude plugin in its own repo.

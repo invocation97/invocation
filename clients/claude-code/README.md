@@ -1,6 +1,6 @@
 # Invocation — Claude Code plugin
 
-Drive your WordPress site's [Invocation](https://github.com/invocation97/blocksmith-plugin) tools from Claude Code: generate, fill, and refine on-theme Gutenberg layouts, and read your site's theme tokens, patterns, media, and internal links.
+Drive your WordPress site's [Invocation](https://github.com/invocation97/invocation) tools from Claude Code: generate, fill, and refine on-theme Gutenberg layouts, and read your site's theme tokens, patterns, media, and internal links.
 
 It connects to Invocation's MCP server, which is provided by the official [WordPress MCP Adapter](https://github.com/WordPress/mcp-adapter).
 
@@ -15,7 +15,7 @@ It connects to Invocation's MCP server, which is provided by the official [WordP
 
 ```bash
 # Add this directory (or repo) as a marketplace, then install
-/plugin marketplace add invocation97/blocksmith-plugin
+/plugin marketplace add invocation97/invocation
 /plugin install invocation@invocation
 ```
 
