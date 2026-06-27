@@ -47,9 +47,14 @@ add_action(
 							'type'        => 'string',
 							'description' => 'Optional description of the target audience.',
 						),
-						'useMedia'  => array(
+						'useMedia'         => array(
 							'type'        => 'boolean',
 							'description' => 'Whether to include real images from the media library. Default true.',
+							'default'     => true,
+						),
+						'useInternalLinks' => array(
+							'type'        => 'boolean',
+							'description' => 'Whether to offer real internal links (pages/posts) for the AI to link to. Default true.',
 							'default'     => true,
 						),
 					),
@@ -127,7 +132,23 @@ function blocksmith_ability_generate_layout( array $input = array() ) {
 		$media = $found['items'];
 	}
 
-	$system = blocksmith_build_layout_system_instruction( $theme, $allowed, $input, $media );
+	// Internal links: same retrieval-and-inject approach, so any internal links
+	// the model adds point at real site content.
+	$use_links = ! array_key_exists( 'useInternalLinks', $input ) || (bool) $input['useInternalLinks'];
+	$links     = array();
+	if ( $use_links && function_exists( 'blocksmith_ability_search_internal_links' ) ) {
+		// List existing site content (no query) so the model knows what pages it
+		// can actually link to, rather than searching by the prompt text.
+		$found_links = blocksmith_ability_search_internal_links(
+			array(
+				'query' => '',
+				'limit' => 15,
+			)
+		);
+		$links = $found_links['items'];
+	}
+
+	$system = blocksmith_build_layout_system_instruction( $theme, $allowed, $input, $media, $links );
 	$json_schema  = array(
 		'type'                 => 'object',
 		'properties'           => array(
@@ -176,8 +197,15 @@ function blocksmith_ability_generate_layout( array $input = array() ) {
 	$registry   = WP_Block_Type_Registry::get_instance();
 	blocksmith_collect_unregistered_blocks( $parsed, $registry, $warnings );
 
+	$markup_out = serialize_blocks( $parsed );
+
+	// Resolve any internal links the model guessed back to real catalog URLs.
+	if ( $links && function_exists( 'blocksmith_repair_internal_links' ) ) {
+		list( $markup_out ) = blocksmith_repair_internal_links( $markup_out, $links );
+	}
+
 	return array(
-		'blockMarkup' => serialize_blocks( $parsed ),
+		'blockMarkup' => $markup_out,
 		'summary'     => (string) ( $data['summary'] ?? '' ),
 		'warnings'    => array_values( array_unique( $warnings ) ),
 	);
@@ -190,9 +218,10 @@ function blocksmith_ability_generate_layout( array $input = array() ) {
  * @param list<string>                     $allowed Registered block names.
  * @param array<string, mixed>             $input   Ability input.
  * @param array<int, array<string, mixed>> $media   Available media items to offer as a catalogue.
+ * @param array<int, array<string, mixed>> $links   Available internal links to offer as a catalogue.
  * @return string
  */
-function blocksmith_build_layout_system_instruction( array $theme, array $allowed, array $input, array $media = array() ): string {
+function blocksmith_build_layout_system_instruction( array $theme, array $allowed, array $input, array $media = array(), array $links = array() ): string {
 	$color_slugs = wp_list_pluck( $theme['colors'] ?? array(), 'slug' );
 	$font_slugs  = wp_list_pluck( $theme['fontFamilies'] ?? array(), 'slug' );
 	$tone        = (string) ( $input['tone'] ?? 'professional' );
@@ -209,6 +238,7 @@ function blocksmith_build_layout_system_instruction( array $theme, array $allowe
 		'- Prefer core layout blocks (core/group, core/columns, core/column, core/cover, core/buttons) to create structured, responsive sections.',
 		'- Establish a clear heading hierarchy (a single h1 or h2 lead, then subsections).',
 		'- Never invent image URLs. Only use images from the "Available images" list below (when present); otherwise omit image blocks entirely.',
+		'- Never invent internal links. For links to this site\'s own pages or posts, use ONLY URLs from the "Available internal links" list below (when present).',
 	);
 
 	if ( $color_slugs ) {
@@ -236,6 +266,14 @@ function blocksmith_build_layout_system_instruction( array $theme, array $allowe
 		}
 	} else {
 		$lines[] = 'No media library images are available. Do not include any image blocks — design with text, color, and layout only.';
+	}
+
+	if ( $links ) {
+		$lines[] = '';
+		$lines[] = 'Available internal links. For links to this site, use ONLY these URLs (never invent internal URLs); choose link text that fits the destination:';
+		foreach ( $links as $link ) {
+			$lines[] = sprintf( '- "%s" (%s): %s', (string) $link['title'], (string) $link['type'], (string) $link['url'] );
+		}
 	}
 
 	$lines[] = '';

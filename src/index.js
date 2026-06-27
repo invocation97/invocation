@@ -27,9 +27,9 @@ import apiFetch from '@wordpress/api-fetch';
 import { __ } from '@wordpress/i18n';
 
 import './refine';
+import { BLOCKSMITH_ICON } from './constants';
 
 const SIDEBAR_NAME = 'blocksmith-sidebar';
-const SIDEBAR_ICON = 'layout';
 
 const TONE_OPTIONS = [
 	{ label: __( 'Professional', 'blocksmith' ), value: 'professional' },
@@ -114,12 +114,12 @@ function BlocksmithSidebar() {
 
 	return (
 		<>
-			<PluginSidebarMoreMenuItem target={ SIDEBAR_NAME } icon={ SIDEBAR_ICON }>
+			<PluginSidebarMoreMenuItem target={ SIDEBAR_NAME } icon={ BLOCKSMITH_ICON }>
 				{ __( 'Blocksmith', 'blocksmith' ) }
 			</PluginSidebarMoreMenuItem>
 			<PluginSidebar
 				name={ SIDEBAR_NAME }
-				icon={ SIDEBAR_ICON }
+				icon={ BLOCKSMITH_ICON }
 				title={ __( 'Blocksmith', 'blocksmith' ) }
 			>
 				<PanelBody>

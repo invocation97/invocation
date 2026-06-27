@@ -25,7 +25,7 @@ import { serialize, parse } from '@wordpress/blocks';
 import apiFetch from '@wordpress/api-fetch';
 import { __ } from '@wordpress/i18n';
 
-const TOOLBAR_ICON = 'superhero-alt';
+import { BLOCKSMITH_ICON } from './constants';
 
 function RefineControl( { clientId } ) {
 	const [ isOpen, setIsOpen ] = useState( false );
@@ -93,7 +93,7 @@ function RefineControl( { clientId } ) {
 			<BlockControls>
 				<ToolbarGroup>
 					<ToolbarButton
-						icon={ TOOLBAR_ICON }
+						icon={ BLOCKSMITH_ICON }
 						label={ __( 'Refine with Blocksmith', 'blocksmith' ) }
 						onClick={ () => setIsOpen( true ) }
 					/>
