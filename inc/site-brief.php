@@ -59,6 +59,34 @@ function blocksmith_has_site_brief(): bool {
 }
 
 /**
+ * Sanitize a site brief before it is stored (defense in depth for direct
+ * update_option writes as well as REST writes).
+ *
+ * @param mixed $value Incoming value.
+ * @return array<string, mixed>
+ */
+function blocksmith_sanitize_site_brief( $value ): array {
+	$value    = is_array( $value ) ? $value : array();
+	$defaults = blocksmith_default_site_brief();
+	$clean    = array();
+
+	foreach ( array( 'purpose', 'audience', 'toneVoice', 'generatedAt' ) as $key ) {
+		$clean[ $key ] = isset( $value[ $key ] ) ? sanitize_textarea_field( (string) $value[ $key ] ) : $defaults[ $key ];
+	}
+
+	foreach ( array( 'offerings', 'keyTerms', 'avoid' ) as $key ) {
+		$items         = ( isset( $value[ $key ] ) && is_array( $value[ $key ] ) ) ? $value[ $key ] : array();
+		$clean[ $key ] = array_values(
+			array_filter(
+				array_map( static fn ( $item ): string => sanitize_text_field( (string) $item ), $items )
+			)
+		);
+	}
+
+	return $clean;
+}
+
+/**
  * Register the brief option (also exposing it via the REST settings endpoint).
  */
 add_action(
@@ -68,9 +96,10 @@ add_action(
 			'options',
 			BLOCKSMITH_SITE_BRIEF_OPTION,
 			array(
-				'type'         => 'object',
-				'default'      => blocksmith_default_site_brief(),
-				'show_in_rest' => array(
+				'type'              => 'object',
+				'default'           => blocksmith_default_site_brief(),
+				'sanitize_callback' => 'blocksmith_sanitize_site_brief',
+				'show_in_rest'      => array(
 					'schema' => array(
 						'type'                 => 'object',
 						'properties'           => array(

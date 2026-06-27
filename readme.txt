@@ -24,6 +24,12 @@ Features:
 
 Everything runs on your server. No external service, database, or Docker required. Capabilities are registered as WordPress Abilities, so they are also available over REST and to MCP agents.
 
+== External services ==
+
+Blocksmith generates content using the AI provider you configure in WordPress 7.0 core under Settings → Connectors (for example OpenAI, Anthropic, or Google). When you trigger a generation, refinement, or "generate Site Brief" action, the plugin sends your prompt plus relevant context from your own site (such as your theme's design tokens, the names of your registered blocks and patterns, titles/URLs of your published pages, and media metadata) to that provider through core's AI Client in order to produce block markup. No data is sent unless you take one of these actions, and the plugin itself transmits nothing to any other external service. Your AI provider credentials are managed by WordPress core Connectors, not by Blocksmith.
+
+Review the terms and privacy policy of whichever provider you connect (e.g. OpenAI: https://openai.com/policies, Anthropic: https://www.anthropic.com/legal, Google: https://policies.google.com) before sending content.
+
 == Installation ==
 
 1. Ensure you are running WordPress 7.0 or later and have configured an AI provider under Settings → Connectors.

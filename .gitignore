@@ -7,3 +7,4 @@ vendor/
 .env.*
 *.zip
 /.mcp.json
+.claude/

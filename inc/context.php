@@ -23,6 +23,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * Capability required to run the generative abilities (generate-layout,
+ * refine-block). Filterable so site owners can raise the floor — e.g. to limit
+ * who can spend the configured AI provider's budget.
+ */
+function blocksmith_generation_capability(): string {
+	/**
+	 * Filters the capability required to run Blocksmith's generative abilities.
+	 *
+	 * @param string $capability Default 'edit_posts'.
+	 */
+	return (string) apply_filters( 'blocksmith_generation_capability', 'edit_posts' );
+}
+
+/**
  * The registered context providers, in render order.
  *
  * @return array<string, array<string, mixed>>

@@ -95,7 +95,7 @@ add_action(
 					),
 				),
 				'execute_callback'    => 'blocksmith_ability_generate_layout',
-				'permission_callback' => static fn (): bool => current_user_can( 'edit_posts' ),
+				'permission_callback' => static fn (): bool => current_user_can( blocksmith_generation_capability() ),
 				'meta'                => array(
 					'show_in_rest' => true,
 					'annotations'  => array(
