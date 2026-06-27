@@ -2,10 +2,8 @@
 /**
  * The blocksmith/search-media ability.
  *
- * Lets the AI find real images that already exist in the site's media library,
- * so generated layouts reference actual attachments instead of hallucinated
- * URLs. Exposed over REST + MCP and intended to be offered to generate-layout
- * as a callable tool.
+ * Lets the AI find real images in the media library so generated layouts
+ * reference actual attachments instead of invented URLs.
  *
  * @package Blocksmith
  */
@@ -90,57 +88,60 @@ add_action(
  */
 function blocksmith_ability_search_media( array $input = array() ): array {
 	$query = trim( (string) ( $input['query'] ?? '' ) );
-	$limit = (int) ( $input['limit'] ?? 10 );
-	$limit = max( 1, min( 50, $limit ) );
+	$limit = max( 1, min( 50, (int) ( $input['limit'] ?? 10 ) ) );
 	$mime  = trim( (string) ( $input['mimeType'] ?? 'image' ) );
+
+	$cache_key = 'search_media_' . md5( $query . '|' . $mime . '|' . $limit );
+	$cached    = wp_cache_get( $cache_key, 'blocksmith' );
+	if ( is_array( $cached ) ) {
+		return $cached;
+	}
 
 	global $wpdb;
 
-	// MIME condition: a bare type like "image" matches "image/%"; a full type
-	// like "image/png" matches exactly.
-	$mime_sql = '';
+	// post_type/post_status are bound (not interpolated) so the whole query is
+	// driven through prepare().
+	$where = 'p.post_type = %s AND p.post_status = %s';
+	$args  = array( 'attachment', 'inherit' );
+
 	if ( '' !== $mime ) {
+		// A bare type like "image" matches "image/%"; a full type matches exactly.
 		if ( str_contains( $mime, '/' ) ) {
-			$mime_sql = $wpdb->prepare( ' AND p.post_mime_type = %s', $mime );
+			$where .= ' AND p.post_mime_type = %s';
+			$args[] = $mime;
 		} else {
-			$mime_sql = $wpdb->prepare( ' AND p.post_mime_type LIKE %s', $wpdb->esc_like( $mime ) . '/%' );
+			$where .= ' AND p.post_mime_type LIKE %s';
+			$args[] = $wpdb->esc_like( $mime ) . '/%';
 		}
 	}
 
-	// Search across title, caption (excerpt), description (content), alt text
-	// (postmeta) and filename. Terms are OR-matched to favour recall, which is
-	// what an AI image search wants.
-	$search_sql = '';
-	$terms      = '' !== $query ? preg_split( '/\s+/', $query, -1, PREG_SPLIT_NO_EMPTY ) : array();
+	// Search title, caption, description, alt text and filename; OR-match terms
+	// to favour recall, which is what an AI image search wants.
+	$terms = '' !== $query ? preg_split( '/\s+/', $query, -1, PREG_SPLIT_NO_EMPTY ) : array();
 	if ( $terms ) {
 		$clauses = array();
 		foreach ( $terms as $term ) {
 			$like      = '%' . $wpdb->esc_like( $term ) . '%';
-			$clauses[] = $wpdb->prepare(
-				'(p.post_title LIKE %s OR p.post_excerpt LIKE %s OR p.post_content LIKE %s OR alt.meta_value LIKE %s OR file.meta_value LIKE %s)',
-				$like,
-				$like,
-				$like,
-				$like,
-				$like
-			);
+			$clauses[] = '(p.post_title LIKE %s OR p.post_excerpt LIKE %s OR p.post_content LIKE %s OR alt.meta_value LIKE %s OR file.meta_value LIKE %s)';
+			array_push( $args, $like, $like, $like, $like, $like );
 		}
-		$search_sql = ' AND (' . implode( ' OR ', $clauses ) . ')';
+		$where .= ' AND (' . implode( ' OR ', $clauses ) . ')';
 	}
 
-	$join  = " LEFT JOIN {$wpdb->postmeta} alt ON ( alt.post_id = p.ID AND alt.meta_key = '_wp_attachment_image_alt' )";
-	$join .= " LEFT JOIN {$wpdb->postmeta} file ON ( file.post_id = p.ID AND file.meta_key = '_wp_attached_file' )";
-	$where = "WHERE p.post_type = 'attachment' AND p.post_status = 'inherit'" . $mime_sql . $search_sql;
+	$join = " LEFT JOIN {$wpdb->postmeta} alt ON ( alt.post_id = p.ID AND alt.meta_key = '_wp_attachment_image_alt' )"
+		. " LEFT JOIN {$wpdb->postmeta} file ON ( file.post_id = p.ID AND file.meta_key = '_wp_attached_file' )";
 
-	// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- clauses are individually prepared above.
-	$total = (int) $wpdb->get_var( "SELECT COUNT( DISTINCT p.ID ) FROM {$wpdb->posts} p{$join} {$where}" );
-	$ids   = $wpdb->get_col(
-		$wpdb->prepare(
-			"SELECT DISTINCT p.ID FROM {$wpdb->posts} p{$join} {$where} ORDER BY p.post_date DESC LIMIT %d",
-			$limit
-		)
-	);
-	// phpcs:enable
+	$count_sql  = "SELECT COUNT( DISTINCT p.ID ) FROM {$wpdb->posts} p{$join} WHERE {$where}";
+	$select_sql = "SELECT DISTINCT p.ID FROM {$wpdb->posts} p{$join} WHERE {$where} ORDER BY p.post_date DESC LIMIT %d";
+
+	// The SQL is assembled dynamically (a variable number of search clauses), but
+	// every user value is bound through prepare() and table names come from $wpdb.
+	// A direct query is required — WP_Query has no equivalent for OR-matching across
+	// title, alt text and filename — and the result is cached above.
+	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+	$total = (int) $wpdb->get_var( $wpdb->prepare( $count_sql, $args ) );
+	$ids   = $wpdb->get_col( $wpdb->prepare( $select_sql, array_merge( $args, array( $limit ) ) ) );
+	// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
 
 	$items = array();
 	foreach ( $ids as $raw_id ) {
@@ -159,8 +160,11 @@ function blocksmith_ability_search_media( array $input = array() ): array {
 		);
 	}
 
-	return array(
+	$result = array(
 		'items' => $items,
 		'total' => $total,
 	);
+	wp_cache_set( $cache_key, $result, 'blocksmith', MINUTE_IN_SECONDS );
+
+	return $result;
 }

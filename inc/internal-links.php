@@ -214,7 +214,7 @@ function blocksmith_repair_internal_links( string $markup, array $links ): array
 
 			$parts = wp_parse_url( $href );
 			if ( ! empty( $parts['host'] ) && $parts['host'] !== $host ) {
-				return $m[0]; // External link.
+				return $m[0];
 			}
 
 			// Resolve by page_id / p query var.
