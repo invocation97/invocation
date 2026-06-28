@@ -4,7 +4,7 @@ Tags: ai, gutenberg, blocks, patterns, content
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.1.0
+Stable tag: 0.2.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -39,6 +39,11 @@ Review the terms and privacy policy of whichever provider you connect (e.g. Open
 4. Open Invocation from the admin menu and generate your Site Brief.
 
 == Changelog ==
+
+= 0.2.0 =
+* Bundle the WordPress MCP Adapter, so MCP works with no extra plugin install.
+* Generate sections / full pages, fill block patterns, and refine blocks in place, grounded in your theme, blocks, media, and internal links.
+* Site Brief, create/update pages, and a built-in MCP server for AI agents (Claude Code).
 
 = 0.1.0 =
 * Initial release.
