@@ -22,8 +22,10 @@ No external service. No database. No Docker at runtime. Your AI key stays in cor
 |---|---|
 | WordPress | **7.0+** |
 | PHP | **8.1+** |
-| AI provider | At least one configured under **Settings → Connectors** |
-| Other plugins | **None** — the MCP Adapter is bundled (see below) |
+| AI provider | An AI **provider plugin** (e.g. [AI Provider for OpenAI](https://wordpress.org/plugins/ai-provider-for-openai/)) **+** your API key in **Settings → Connectors** |
+| Other plugins | Nothing else — the MCP Adapter is bundled (see below) |
+
+> **You must install one AI provider plugin.** WordPress 7.0 ships the AI Client and the Connectors *framework*, but the actual model provider is a small official, free plugin. Install **[AI Provider for OpenAI](https://wordpress.org/plugins/ai-provider-for-openai/)** (or the Anthropic / Google equivalents), then add your API key under **Settings → Connectors**. Without a provider plugin, generation fails with *"No models found that support text generation."* Invocation's admin page links you straight to both steps.
 
 ### WordPress core features it relies on
 

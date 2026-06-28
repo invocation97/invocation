@@ -33,10 +33,10 @@ Review the terms and privacy policy of whichever provider you connect (e.g. Open
 
 == Installation ==
 
-1. Ensure you are running WordPress 7.0 or later and have configured an AI provider under Settings → Connectors.
-2. Upload the plugin to the `wp-content/plugins/invocation` directory, or install it through the Plugins screen.
-3. Activate the plugin through the Plugins screen.
-4. Open Invocation from the admin menu and generate your Site Brief.
+1. Ensure you are running WordPress 7.0 or later.
+2. Install an AI provider plugin (e.g. "AI Provider for OpenAI", "AI Provider for Anthropic", or "AI Provider for Google") and add your API key under Settings → Connectors. WordPress core provides the AI Client and Connectors framework, but a provider plugin is required to supply a model.
+3. Upload Invocation to the `wp-content/plugins/invocation` directory, or install it through the Plugins screen, and activate it. (The MCP server is built in — no other plugins needed.)
+4. Open Invocation from the admin menu (it links you to both setup steps) and generate your Site Brief.
 
 == Changelog ==
 
