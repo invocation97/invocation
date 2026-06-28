@@ -61,23 +61,18 @@ add_action(
  * Render the Invocation admin page: an AI-setup callout plus the React app mount.
  */
 function invocation_render_admin_page(): void {
-	$provider_url   = admin_url( 'plugin-install.php?tab=search&type=term&s=' . rawurlencode( 'AI Provider for' ) );
 	$ai_plugin_url  = admin_url( 'plugin-install.php?tab=plugin-information&plugin=ai' );
-	$connectors_url = (string) menu_page_url( 'options-connectors-wp-admin', false );
-	if ( '' === $connectors_url ) {
-		$connectors_url = admin_url( 'options-general.php' );
-	}
+	$connectors_url = admin_url( 'options-connectors.php' );
 	?>
 	<div class="wrap">
 		<div class="notice notice-info inline" style="margin: 16px 0; padding: 12px 16px;">
 			<p style="margin: 0 0 8px;">
 				<strong><?php esc_html_e( 'Set up AI', 'invocation' ); ?></strong>
-				&mdash; <?php esc_html_e( 'On-site generation runs through your own AI provider. Install a provider connector plugin (OpenAI, Anthropic, or Google) and add your API key in Connectors. The official WordPress AI plugin adds the setup UI and extra features.', 'invocation' ); ?>
+				&mdash; <?php esc_html_e( 'On-site generation runs through your own AI provider. Install the official WordPress AI plugin, then open Connectors to add a provider (OpenAI, Anthropic, or Google) and your API key.', 'invocation' ); ?>
 			</p>
 			<p style="margin: 0;">
-				<a class="button button-secondary" href="<?php echo esc_url( $provider_url ); ?>"><?php esc_html_e( 'Install a provider connector', 'invocation' ); ?></a>
-				<a class="button button-secondary" href="<?php echo esc_url( $ai_plugin_url ); ?>"><?php esc_html_e( 'Get the AI plugin', 'invocation' ); ?></a>
-				<a class="button button-secondary" href="<?php echo esc_url( $connectors_url ); ?>"><?php esc_html_e( 'Add your API key (Connectors)', 'invocation' ); ?></a>
+				<a class="button button-secondary" href="<?php echo esc_url( $ai_plugin_url ); ?>"><?php esc_html_e( 'Install the AI plugin', 'invocation' ); ?></a>
+				<a class="button button-secondary" href="<?php echo esc_url( $connectors_url ); ?>"><?php esc_html_e( 'Open Connectors', 'invocation' ); ?></a>
 			</p>
 		</div>
 		<div id="invocation-admin-root"></div>
