@@ -9,7 +9,9 @@
     "readme.txt",
     "inc",
     "build",
-    "src"
+    "src",
+    "vendor",
+    "composer.json"
   ],
   "scripts": {
     "build": "wp-scripts build src/index.js src/admin.js",

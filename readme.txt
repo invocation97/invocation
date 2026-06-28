@@ -21,6 +21,7 @@ Features:
 * Refine any block in place from the editor toolbar.
 * Uses real media and real internal links — never invented URLs.
 * A Site Brief that keeps every generation on-brand.
+* A built-in MCP server — drive everything from AI agents like Claude Code, with no extra plugin to install.
 
 Everything runs on your server. No external service, database, or Docker required. Capabilities are registered as WordPress Abilities, so they are also available over REST and to MCP agents.
 

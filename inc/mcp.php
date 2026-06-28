@@ -1,12 +1,9 @@
 <?php
 /**
- * Expose Invocation's abilities over MCP using the official WordPress MCP
- * Adapter (https://github.com/WordPress/mcp-adapter).
- *
- * Rather than hand-roll the protocol, we register a custom MCP server with the
- * adapter and let it handle transport, spec versioning, auth and validation.
- * MCP is an optional enhancement: if the adapter isn't installed, the rest of
- * Invocation still works and we show an admin notice.
+ * Expose Invocation's abilities over MCP using the WordPress MCP Adapter, which
+ * is bundled with the plugin (in vendor/, loaded via the Jetpack Autoloader) —
+ * no separate install required. We register a custom MCP server and let the
+ * adapter handle transport, spec versioning, auth and validation.
  *
  * Endpoint (HTTP transport): /wp-json/invocation/mcp
  *
@@ -63,31 +60,16 @@ add_action(
 );
 
 /**
- * Nudge admins to install the MCP Adapter so the MCP tools become available.
+ * Boot the bundled MCP Adapter once all plugins are loaded; this in turn fires
+ * the `mcp_adapter_init` action above. Guarded so a missing/!loaded adapter
+ * degrades gracefully rather than fataling.
  */
 add_action(
-	'admin_notices',
+	'plugins_loaded',
 	static function (): void {
-		if ( ! current_user_can( 'manage_options' ) || class_exists( 'WP\\MCP\\Core\\McpAdapter' ) ) {
-			return;
+		if ( class_exists( '\WP\MCP\Core\McpAdapter' ) ) {
+			\WP\MCP\Core\McpAdapter::instance();
 		}
-		// Keep the notice scoped to the plugin's own page (Guideline 11).
-		$screen = get_current_screen();
-		if ( ! $screen || ! defined( 'INVOCATION_ADMIN_SLUG' ) || 'toplevel_page_' . INVOCATION_ADMIN_SLUG !== $screen->id ) {
-			return;
-		}
-		$link    ='<a href="https://github.com/WordPress/mcp-adapter" target="_blank" rel="noreferrer noopener">' . esc_html__( 'MCP Adapter', 'invocation' ) . '</a>';
-		$message = sprintf(
-			/* translators: %s: link to the MCP Adapter plugin. */
-			esc_html__( 'Invocation: install the %s plugin to use Invocation from Claude Code and other AI agents over MCP. The editor features work without it.', 'invocation' ),
-			$link
-		);
-		wp_admin_notice(
-			$message,
-			array(
-				'type'               => 'info',
-				'additional_classes' => array( 'is-dismissible' ),
-			)
-		);
-	}
+	},
+	20
 );

@@ -4,7 +4,7 @@ This guide covers cutting a release of the Invocation WordPress plugin (and the 
 
 ## 0. What ships
 
-The distributed plugin zip contains only: `invocation.php`, `readme.txt`, `inc/`, `build/` (controlled by the `files` field in `package.json`). Dev files (`src/`, `node_modules/`, `clients/`, `.gitignore`, `docker-compose.yml`, `README.md`, `package*.json`) are **not** shipped.
+The distributed plugin zip contains: `invocation.php`, `readme.txt`, `inc/`, `build/`, `src/` (the compiled-JS sources, required by wp.org), `vendor/` (the bundled MCP Adapter), and `composer.json` (controlled by the `files` field in `package.json`). Dev-only files (`node_modules/`, `clients/`, `.gitignore`, `docker-compose.yml`, `README.md`, `package*.json`, `composer.lock`) are **not** shipped.
 
 ## 1. Bump the version (keep these three in sync)
 
@@ -19,9 +19,12 @@ Also update `readme.txt` → `Tested up to:` to the latest WordPress version you
 ## 2. Build
 
 ```bash
+composer install --no-dev   # bundles vendor/ (MCP Adapter via Jetpack Autoloader)
 npm ci
-npm run build        # compiles src/index.js + src/admin.js -> build/
+npm run build               # compiles src/index.js + src/admin.js -> build/
 ```
+
+(No local PHP/Composer? Run Composer through Docker: `docker run --rm -v "$PWD":/app -w /app composer:2 install --no-dev`.)
 
 ## 3. Pre-flight checks
 
@@ -81,7 +84,7 @@ gh release create vX.Y.Z invocation.zip --title "vX.Y.Z" --notes "…changelog�
 5. Confirm the live `Stable tag` in trunk `readme.txt` matches the tag you created.
 
 ### Notes for WP.org
-- The **MCP Adapter** is an optional dependency (GitHub-distributed). Do **not** add a `Requires Plugins` header for it — that would block activation. The graceful `class_exists` check + admin notice is correct; document the manual install in the readme.
+- The **MCP Adapter** is **bundled** via Composer (loaded with the Jetpack Autoloader) — run `composer install` before packaging so `vendor/` is present. There are no external required plugins, so no `Requires Plugins` header is needed.
 - No secrets ship in the repo; keys are the user's, held by core Connectors.
 
 ## 7. Claude Code plugin (companion, in `clients/claude-code/`)

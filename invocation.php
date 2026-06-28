@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       Invocation - AI Page & Section Builder
- * Plugin URI:        https://invocation.site
+ * Plugin URI:        https://github.com/invocation97/invocation
  * Description:       Build styled Gutenberg page content with AI, using your own block theme. Brings your own AI provider via WordPress Connectors.
  * Version:           0.1.0
  * Requires at least: 7.0
@@ -24,6 +24,12 @@ define( 'INVOCATION_VERSION', '0.1.0' );
 define( 'INVOCATION_FILE', __FILE__ );
 define( 'INVOCATION_DIR', plugin_dir_path( __FILE__ ) );
 define( 'INVOCATION_URL', plugin_dir_url( __FILE__ ) );
+
+// Load bundled dependencies (the WordPress MCP Adapter) via the Jetpack
+// Autoloader, so they coexist with any other plugin shipping the same packages.
+if ( is_readable( INVOCATION_DIR . 'vendor/autoload_packages.php' ) ) {
+	require_once INVOCATION_DIR . 'vendor/autoload_packages.php';
+}
 
 /**
  * Verify the runtime dependencies Invocation relies on from WordPress 7.0 core:

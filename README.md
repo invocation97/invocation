@@ -23,7 +23,7 @@ No external service. No database. No Docker at runtime. Your AI key stays in cor
 | WordPress | **7.0+** |
 | PHP | **8.1+** |
 | AI provider | At least one configured under **Settings → Connectors** |
-| MCP (optional) | The [WordPress MCP Adapter](https://github.com/WordPress/mcp-adapter) plugin |
+| Other plugins | **None** — the MCP Adapter is bundled (see below) |
 
 ### WordPress core features it relies on
 
@@ -36,7 +36,7 @@ Invocation is built entirely on first-party WordPress 7.0 building blocks — it
 | **Connectors API** (Settings → Connectors) | Provider selection + your API key (BYO key) |
 | Native `parse_blocks()` / `serialize_blocks()` | Validating and normalising generated markup |
 
-**Optional:** the **WordPress MCP Adapter** plugin. Invocation works fully without it; install it only to expose the abilities over MCP. There is no `Requires Plugins` hard dependency, so Invocation activates standalone.
+**No other plugins required.** Invocation **bundles** the official [WordPress MCP Adapter](https://github.com/WordPress/mcp-adapter) (via Composer + the Jetpack Autoloader), so MCP works out of the box with nothing extra to install. If you happen to also run the standalone MCP Adapter plugin, the Jetpack Autoloader makes them coexist.
 
 ## Abilities ("skills")
 
@@ -59,7 +59,7 @@ Every capability is a registered **Ability**, which means it is callable in PHP 
 
 ## MCP server
 
-With the [MCP Adapter](https://github.com/WordPress/mcp-adapter) active, Invocation registers an MCP server that exposes the abilities above as tools at:
+Invocation bundles the official WordPress MCP Adapter and registers an MCP server that exposes the abilities above as tools at:
 
 ```
 /wp-json/invocation/mcp
