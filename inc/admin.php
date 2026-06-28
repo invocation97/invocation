@@ -32,6 +32,22 @@ add_action(
 );
 
 /**
+ * Add a "Settings" link to the plugin's row on the Plugins screen.
+ */
+add_filter(
+	'plugin_action_links_' . plugin_basename( INVOCATION_FILE ),
+	static function ( array $links ): array {
+		$settings = sprintf(
+			'<a href="%s">%s</a>',
+			esc_url( admin_url( 'admin.php?page=' . INVOCATION_ADMIN_SLUG ) ),
+			esc_html__( 'Settings', 'invocation' )
+		);
+		array_unshift( $links, $settings );
+		return $links;
+	}
+);
+
+/**
  * Enqueue the admin React app on the Invocation page.
  */
 add_action(
