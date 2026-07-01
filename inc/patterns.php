@@ -136,49 +136,103 @@ function invocation_ability_list_patterns( array $input = array() ): array {
 }
 
 /**
- * Build a compact catalogue of registered patterns for context injection.
+ * Build a compact catalogue of patterns for context injection.
+ *
+ * Combines the site's own saved (user) patterns — surfaced first, since they are
+ * this site's designed layouts — with registered theme/core patterns.
  *
  * @param int  $limit           Maximum patterns to return.
  * @param bool $include_content Whether to include each pattern's block markup.
  * @return array<int, array<string, mixed>>
  */
 function invocation_get_patterns_for_context( int $limit = 40, bool $include_content = false ): array {
-	if ( ! class_exists( 'WP_Block_Patterns_Registry' ) ) {
-		return array();
+	$out = invocation_get_user_patterns( $include_content );
+
+	if ( class_exists( 'WP_Block_Patterns_Registry' ) ) {
+		foreach ( WP_Block_Patterns_Registry::get_instance()->get_all_registered() as $pattern ) {
+			if ( count( $out ) >= $limit ) {
+				break;
+			}
+			// Skip patterns hidden from the inserter (utility/hidden patterns).
+			if ( isset( $pattern['inserter'] ) && false === $pattern['inserter'] ) {
+				continue;
+			}
+			$out[] = invocation_pattern_context_item(
+				(string) ( $pattern['name'] ?? '' ),
+				(string) ( $pattern['title'] ?? '' ),
+				(string) ( $pattern['description'] ?? '' ),
+				array_values( array_map( 'strval', (array) ( $pattern['categories'] ?? array() ) ) ),
+				(string) ( $pattern['content'] ?? '' ),
+				$include_content
+			);
+		}
 	}
 
-	$registered = WP_Block_Patterns_Registry::get_instance()->get_all_registered();
-	$out        = array();
+	return array_slice( $out, 0, $limit );
+}
 
-	foreach ( $registered as $pattern ) {
-		// Skip patterns hidden from the inserter (utility/hidden patterns).
-		if ( isset( $pattern['inserter'] ) && false === $pattern['inserter'] ) {
-			continue;
-		}
+/**
+ * Build a single pattern catalogue entry, deriving the block names it uses.
+ *
+ * @param string       $name            Pattern reference (slug, or "user:{id}").
+ * @param string       $title           Pattern title.
+ * @param string       $description     Pattern description.
+ * @param list<string> $categories      Category slugs/names.
+ * @param string       $content         Block markup.
+ * @param bool         $include_content Whether to include the markup in the entry.
+ * @return array<string, mixed>
+ */
+function invocation_pattern_context_item( string $name, string $title, string $description, array $categories, string $content, bool $include_content ): array {
+	$blocks = array();
+	if ( '' !== $content ) {
+		$names = array();
+		invocation_collect_block_names( parse_blocks( $content ), $names );
+		$blocks = array_slice( array_values( array_unique( $names ) ), 0, 12 );
+	}
 
-		$content = (string) ( $pattern['content'] ?? '' );
-		$blocks  = array();
-		if ( '' !== $content ) {
-			$names = array();
-			invocation_collect_block_names( parse_blocks( $content ), $names );
-			$blocks = array_slice( array_values( array_unique( $names ) ), 0, 12 );
-		}
+	$item = array(
+		'name'        => $name,
+		'title'       => $title,
+		'description' => $description,
+		'categories'  => $categories,
+		'blocks'      => $blocks,
+	);
+	if ( $include_content ) {
+		$item['content'] = $content;
+	}
 
-		$item = array(
-			'name'        => (string) ( $pattern['name'] ?? '' ),
-			'title'       => (string) ( $pattern['title'] ?? '' ),
-			'description' => (string) ( $pattern['description'] ?? '' ),
-			'categories'  => array_values( array_map( 'strval', (array) ( $pattern['categories'] ?? array() ) ) ),
-			'blocks'      => $blocks,
+	return $item;
+}
+
+/**
+ * The site's own saved patterns (wp_block posts), including any saved via
+ * invocation/save-pattern. Referenced as "user:{id}" so they can be filled by
+ * invocation/generate-layout like registered patterns.
+ *
+ * @param bool $include_content Whether to include each pattern's block markup.
+ * @return array<int, array<string, mixed>>
+ */
+function invocation_get_user_patterns( bool $include_content = false ): array {
+	$posts = get_posts(
+		array(
+			'post_type'        => 'wp_block',
+			'post_status'      => 'publish',
+			'numberposts'      => 200,
+			'suppress_filters' => false,
+		)
+	);
+
+	$out = array();
+	foreach ( $posts as $post ) {
+		$categories = wp_get_object_terms( $post->ID, 'wp_pattern_category', array( 'fields' => 'names' ) );
+		$out[]      = invocation_pattern_context_item(
+			'user:' . $post->ID,
+			(string) $post->post_title,
+			'',
+			is_wp_error( $categories ) ? array() : array_map( 'strval', $categories ),
+			(string) $post->post_content,
+			$include_content
 		);
-		if ( $include_content ) {
-			$item['content'] = $content;
-		}
-
-		$out[] = $item;
-		if ( count( $out ) >= $limit ) {
-			break;
-		}
 	}
 
 	return $out;
@@ -243,6 +297,20 @@ function invocation_rank_patterns( array $patterns, string $query, int $limit ):
  * @return array{name: string, title: string, content: string}|null
  */
 function invocation_get_pattern_by_name( string $name ): ?array {
+	// Saved (user) patterns are referenced as "user:{id}".
+	if ( str_starts_with( $name, 'user:' ) ) {
+		$id   = (int) substr( $name, 5 );
+		$post = $id ? get_post( $id ) : null;
+		if ( ! $post || 'wp_block' !== $post->post_type ) {
+			return null;
+		}
+		return array(
+			'name'    => $name,
+			'title'   => '' !== (string) $post->post_title ? (string) $post->post_title : $name,
+			'content' => (string) $post->post_content,
+		);
+	}
+
 	if ( ! class_exists( 'WP_Block_Patterns_Registry' ) ) {
 		return null;
 	}

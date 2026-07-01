@@ -56,6 +56,7 @@ Every capability is a registered **Ability**, which means it is callable in PHP 
 | `invocation/gather-site-context` | Build/refresh the Site Brief | `manage_options` |
 | `invocation/create-page` | Create a page/post (draft by default) | post type's create cap |
 | `invocation/update-page` | Update a page/post by id | `edit_post` (that post) |
+| `invocation/save-pattern` | Save a section / full-page layout as a reusable pattern | `wp_block` create cap (`edit_posts`) |
 
 \* The generative abilities' capability is filterable via `invocation_generation_capability` (default `edit_posts`) so you can limit who can spend the AI budget.
 

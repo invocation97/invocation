@@ -170,6 +170,32 @@ function invocation_generate_text( string $user_prompt, string $system, array $s
 }
 
 /**
+ * Validate and normalise block markup: ensure it parses to real blocks and
+ * re-serialise it, collecting the names of any blocks not registered here.
+ *
+ * Shared by generated layouts and the save-pattern ability, so both apply the
+ * same validation. No context is required — this is the transport-agnostic half
+ * of finalisation, without the internal-link repair.
+ *
+ * @param string $markup Raw block markup.
+ * @return array{markup: string, warnings: list<string>}|WP_Error
+ */
+function invocation_normalize_markup( string $markup ) {
+	$parsed = parse_blocks( $markup );
+	if ( empty( array_filter( $parsed, static fn ( array $b ): bool => ! empty( $b['blockName'] ) ) ) ) {
+		return new WP_Error( 'invocation_no_blocks', __( 'The markup did not contain any valid blocks.', 'invocation' ) );
+	}
+
+	$warnings = array();
+	invocation_collect_unregistered_blocks( $parsed, WP_Block_Type_Registry::get_instance(), $warnings );
+
+	return array(
+		'markup'   => serialize_blocks( $parsed ),
+		'warnings' => array_values( array_unique( $warnings ) ),
+	);
+}
+
+/**
  * Validate, normalise and repair model-produced block markup.
  *
  * @param string               $markup Raw block markup from the model.
@@ -177,15 +203,12 @@ function invocation_generate_text( string $user_prompt, string $system, array $s
  * @return array{blockMarkup: string, warnings: list<string>}|WP_Error
  */
 function invocation_finalize_markup( string $markup, array $ctx ) {
-	$parsed = parse_blocks( $markup );
-	if ( empty( array_filter( $parsed, static fn ( array $b ): bool => ! empty( $b['blockName'] ) ) ) ) {
-		return new WP_Error( 'invocation_no_blocks', __( 'The AI response did not contain any valid blocks.', 'invocation' ) );
+	$normalized = invocation_normalize_markup( $markup );
+	if ( is_wp_error( $normalized ) ) {
+		return $normalized;
 	}
 
-	$warnings = array();
-	invocation_collect_unregistered_blocks( $parsed, WP_Block_Type_Registry::get_instance(), $warnings );
-
-	$out   = serialize_blocks( $parsed );
+	$out   = $normalized['markup'];
 	$links = $ctx['data']['links'] ?? array();
 	if ( ! empty( $links ) && function_exists( 'invocation_repair_internal_links' ) ) {
 		list( $out ) = invocation_repair_internal_links( $out, $links );
@@ -193,7 +216,7 @@ function invocation_finalize_markup( string $markup, array $ctx ) {
 
 	return array(
 		'blockMarkup' => $out,
-		'warnings'    => array_values( array_unique( $warnings ) ),
+		'warnings'    => $normalized['warnings'],
 	);
 }
 
