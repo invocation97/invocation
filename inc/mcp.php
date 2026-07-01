@@ -34,6 +34,7 @@ function invocation_mcp_abilities(): array {
 		'invocation/create-page',
 		'invocation/update-page',
 		'invocation/save-pattern',
+		'invocation/list-templates',
 	);
 }
 

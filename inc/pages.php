@@ -49,6 +49,10 @@ add_action(
 							'description' => 'Post type to create. Defaults to "page".',
 							'default'     => 'page',
 						),
+						'template' => array(
+							'type'        => 'string',
+							'description' => 'Optional page template slug from invocation/list-templates (e.g. "page-no-title" for a title-less marketing layout). Omit for the theme default.',
+						),
 					),
 					'required'             => array( 'title' ),
 					'additionalProperties' => false,
@@ -96,6 +100,10 @@ add_action(
 							'description' => 'New status (omit to leave unchanged). Status change to publish/private is ignored if the user cannot publish.',
 							'enum'        => INVOCATION_PAGE_STATUSES,
 						),
+						'template' => array(
+							'type'        => 'string',
+							'description' => 'Page template slug from invocation/list-templates (omit to leave unchanged; pass "default" or "" to clear back to the theme default).',
+						),
 					),
 					'required'             => array( 'id' ),
 					'additionalProperties' => false,
@@ -128,11 +136,12 @@ function invocation_page_output_schema(): array {
 	return array(
 		'type'       => 'object',
 		'properties' => array(
-			'id'      => array( 'type' => 'integer' ),
-			'title'   => array( 'type' => 'string' ),
-			'status'  => array( 'type' => 'string' ),
-			'url'     => array( 'type' => 'string' ),
-			'editUrl' => array( 'type' => 'string' ),
+			'id'       => array( 'type' => 'integer' ),
+			'title'    => array( 'type' => 'string' ),
+			'status'   => array( 'type' => 'string' ),
+			'template' => array( 'type' => 'string' ),
+			'url'      => array( 'type' => 'string' ),
+			'editUrl'  => array( 'type' => 'string' ),
 		),
 	);
 }
@@ -145,11 +154,12 @@ function invocation_page_output_schema(): array {
  */
 function invocation_page_response( int $id ): array {
 	return array(
-		'id'      => $id,
-		'title'   => (string) get_the_title( $id ),
-		'status'  => (string) get_post_status( $id ),
-		'url'     => (string) get_permalink( $id ),
-		'editUrl' => (string) ( get_edit_post_link( $id, 'raw' ) ?: '' ),
+		'id'       => $id,
+		'title'    => (string) get_the_title( $id ),
+		'status'   => (string) get_post_status( $id ),
+		'template' => (string) get_post_meta( $id, '_wp_page_template', true ),
+		'url'      => (string) get_permalink( $id ),
+		'editUrl'  => (string) ( get_edit_post_link( $id, 'raw' ) ?: '' ),
 	);
 }
 
@@ -182,6 +192,15 @@ function invocation_ability_create_page( array $input = array() ) {
 		$status = 'draft';
 	}
 
+	// Validate the template before creating anything, so a bad slug fails cleanly.
+	$template = null;
+	if ( array_key_exists( 'template', $input ) ) {
+		$template = invocation_resolve_template( (string) $input['template'], $post_type );
+		if ( is_wp_error( $template ) ) {
+			return $template;
+		}
+	}
+
 	$id = wp_insert_post(
 		array(
 			'post_title'   => $title,
@@ -194,6 +213,10 @@ function invocation_ability_create_page( array $input = array() ) {
 
 	if ( is_wp_error( $id ) ) {
 		return $id;
+	}
+
+	if ( null !== $template ) {
+		invocation_apply_template( (int) $id, $template );
 	}
 
 	return invocation_page_response( (int) $id );
@@ -228,13 +251,29 @@ function invocation_ability_update_page( array $input = array() ) {
 		}
 	}
 
-	if ( count( $data ) === 1 ) {
-		return new WP_Error( 'invocation_nothing_to_update', __( 'Provide a title, content, or status to update.', 'invocation' ) );
+	// Validate the template up front (a template-only update is valid).
+	$template = null;
+	if ( array_key_exists( 'template', $input ) ) {
+		$template = invocation_resolve_template( (string) $input['template'], $post->post_type );
+		if ( is_wp_error( $template ) ) {
+			return $template;
+		}
 	}
 
-	$result = wp_update_post( $data, true );
-	if ( is_wp_error( $result ) ) {
-		return $result;
+	if ( count( $data ) === 1 && null === $template ) {
+		return new WP_Error( 'invocation_nothing_to_update', __( 'Provide a title, content, status, or template to update.', 'invocation' ) );
+	}
+
+	// Only touch post fields when there is something beyond the ID to change.
+	if ( count( $data ) > 1 ) {
+		$result = wp_update_post( $data, true );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+	}
+
+	if ( null !== $template ) {
+		invocation_apply_template( $id, $template );
 	}
 
 	return invocation_page_response( $id );
