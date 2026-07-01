@@ -62,7 +62,8 @@ Nothing is persisted by generation — the caller (editor, REST, or MCP agent) d
 | `generate-layout.php` | `generate-layout` ability (section / full-page / fill-from-pattern) |
 | `refine-block.php` | `refine-block` ability (rewrite one block in place) |
 | `patterns.php` / `internal-links.php` / `search-media.php` | Providers + their `list-*`/`search-*` abilities. Patterns include both registered (code) patterns and the site's saved `wp_block` user patterns (referenced as `user:{id}`, resolvable by `fill-from-pattern`) |
-| `pages.php` | `create-page` / `update-page` write abilities |
+| `pages.php` | `create-page` / `update-page` write abilities (both accept a `template` slug) |
+| `templates.php` | `list-templates` ability + template validate/apply helpers; page templates are stored in the `_wp_page_template` post meta, discovered via `WP_Theme::get_page_templates()` |
 | `save-pattern.php` | `save-pattern` write ability — persists markup as a reusable `wp_block` pattern (unsynced by default); saved patterns feed back into generation grounding |
 | `site-brief.php` | Editable Site Brief (`gather-site-context`) injected into generations |
 | `mcp.php` | MCP server registration |
